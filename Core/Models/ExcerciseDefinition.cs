@@ -1,6 +1,320 @@
-namespace GymLog.Api.Models;
+namespace Core.Models;
 
-public class ExcerciseDefinition
+public sealed record ExerciseDefinition(
+    string Id,
+    string Name,
+    string Category,
+    string MuscleGroup,
+    bool Barbell,
+    params string[] Aliases);
+
+public static class ExerciseCatalog
 {
-    
+    public static readonly IReadOnlyList<ExerciseDefinition> All =
+    [
+        new(
+            "barbell-bench-press",
+            "Barbell Bench Press",
+            "Strength",
+            "Chest",
+            true,
+            "bench",
+            "bench press",
+            "lawka",
+            "ławka",
+            "lawka pozioma",
+            "ławka pozioma",
+            "plaska lawka",
+            "flat bench",
+            "flat bench press"),
+
+        new(
+            "incline-barbell-bench-press",
+            "Incline Barbell Bench Press",
+            "Strength",
+            "Chest",
+            true,
+            "incline bench",
+            "incline",
+            "skos",
+            "lawka skos",
+            "ławka skos",
+            "skos lawka",
+            "ławka skośna"),
+
+        new(
+            "incline-dumbbell-press",
+            "Incline Dumbbell Press",
+            "Strength",
+            "Chest",
+            false,
+            "incline dumbbell",
+            "incline dumbbel press",
+            "skos hantle",
+            "hantle skos"),
+
+        new(
+            "barbell-deadlift",
+            "Barbell Deadlift",
+            "Strength",
+            "Back",
+            true,
+            "deadlift",
+            "dead lift",
+            "martwy",
+            "martwy ciag",
+            "martwy ciąg"),
+
+        new(
+            "barbell-squat",
+            "Barbell Squat",
+            "Strength",
+            "Legs",
+            true,
+            "squat",
+            "squats",
+            "siady",
+            "siad",
+            "przysiad",
+            "przysiady"),
+
+        new(
+            "leg-press",
+            "Leg Press",
+            "Strength",
+            "Legs",
+            false,
+            "legpress",
+            "leg press",
+            "suwnica",
+            "suwnica nogi"),
+
+        new(
+            "lying-leg-curl",
+            "Lying Leg Curl",
+            "Strength",
+            "Hamstrings",
+            false,
+            "leg curl",
+            "leg curls",
+            "hamstring",
+            "hamstringi",
+            "hamstringi lezaco",
+            "hamstringi leżąco"),
+
+        new(
+            "seated-leg-curl",
+            "Seated Leg Curl",
+            "Strength",
+            "Hamstrings",
+            false,
+            "seated leg curl"),
+
+        new(
+            "calf-raise",
+            "Calf Raise",
+            "Strength",
+            "Calves",
+            false,
+            "calves",
+            "lydy",
+            "łydy",
+            "lydki",
+            "łydki"),
+
+        new(
+            "pull-up",
+            "Pull-Up",
+            "Strength",
+            "Back",
+            false,
+            "pull up",
+            "pull-up",
+            "pullups",
+            "podciaganie",
+            "podciąganie",
+            "podciogniecia",
+            "podciągnięcia"),
+
+        new(
+            "lat-pulldown",
+            "Lat Pulldown",
+            "Strength",
+            "Back",
+            false,
+            "lat pulldown",
+            "pulldown",
+            "ściąganie drążka",
+            "sciaganie drazka"),
+
+        new(
+            "barbell-row",
+            "Barbell Row",
+            "Strength",
+            "Back",
+            true,
+            "barbell row",
+            "wioslo",
+            "wiosło",
+            "wioslowanie",
+            "wiosłowanie"),
+
+        new(
+            "overhead-press",
+            "Overhead Press",
+            "Strength",
+            "Shoulders",
+            true,
+            "ohp",
+            "overhead press",
+            "military press",
+            "wyciskanie zolnierskie",
+            "wyciskanie żołnierskie"),
+
+        new(
+            "dumbbell-curl",
+            "Dumbbell Curl",
+            "Strength",
+            "Biceps",
+            false,
+            "biceps hantle",
+            "hantle biceps",
+            "dumbbell curls",
+            "db curl"),
+
+        new(
+            "barbell-curl",
+            "Barbell Curl",
+            "Strength",
+            "Biceps",
+            true,
+            "biceps sztanga",
+            "biceps sztanga",
+            "biceps sztangą",
+            "barbell curl"),
+
+        new(
+            "chest-fly",
+            "Chest Fly",
+            "Strength",
+            "Chest",
+            false,
+            "fly",
+            "flies",
+            "rozpietki",
+            "rozpiętki"),
+
+        new(
+            "dip",
+            "Dip",
+            "Strength",
+            "Chest",
+            false,
+            "dips",
+            "dipy",
+            "dip"),
+
+        new(
+            "triceps-skull-crusher",
+            "Skull Crusher",
+            "Strength",
+            "Triceps",
+            true,
+            "skull crusher",
+            "skull crushery",
+            "skullcrushery",
+            "triceps skull crusher"),
+
+        new(
+            "triceps-extension",
+            "Triceps Extension",
+            "Strength",
+            "Triceps",
+            false,
+            "triceps",
+            "triceps extension",
+            "tric",
+            "tricepsy"),
+
+        new(
+            "crunch",
+            "Crunch",
+            "Strength",
+            "Abs",
+            false,
+            "brzuch",
+            "brzuszki",
+            "crunch",
+            "crunches"),
+
+        new(
+            "farmer-walk",
+            "Farmer Walk",
+            "Strength",
+            "Full Body",
+            false,
+            "farmer walk",
+            "farmer walki",
+            "farmer's walk"),
+
+        new(
+            "treadmill-running",
+            "Treadmill Running",
+            "Cardio",
+            "Cardio",
+            false,
+            "bieznia",
+            "bieżnia",
+            "bieg",
+            "bieganie",
+            "run",
+            "running",
+            "treadmill"),
+
+        new(
+            "treadmill-walking",
+            "Treadmill Walking",
+            "Cardio",
+            "Cardio",
+            false,
+            "walking",
+            "walk",
+            "chodzenie",
+            "marsz",
+            "spacer",
+            "treadmill walk"),
+
+        new(
+            "cycling",
+            "Cycling",
+            "Cardio",
+            "Cardio",
+            false,
+            "bike",
+            "cycling",
+            "rower",
+            "rowerem",
+            "jazda rowerem"),
+
+        new(
+            "stair-climber",
+            "Stair Climber",
+            "Cardio",
+            "Cardio",
+            false,
+            "stairs",
+            "stair",
+            "schody",
+            "stairmaster"),
+
+        new(
+            "dynamic-warmup",
+            "Dynamic Warm-up",
+            "Cardio",
+            "Warm-up",
+            false,
+            "dynamic warmup",
+            "dynamiczna rozgrzewka",
+            "rozgrzewka")
+    ];
 }
