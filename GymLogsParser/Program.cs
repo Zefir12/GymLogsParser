@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GymLogsParser.Extensions;
 using GymLogsParser.Configuration;
 
@@ -6,7 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddConfigurationRegistration(builder.Configuration);
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddDatabase(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter()
+        );
+    });
 builder.Services.AddSwaggerGen();
 builder.Services.AddCorsPolicies(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);

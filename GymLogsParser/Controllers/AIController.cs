@@ -1,9 +1,8 @@
-using GymLog.Api.AI;
 using GymLog.Api.Models;
 using Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GymLog.Api.Controllers;
+namespace GymLogsParser.Controllers;
 
 [ApiController]
 [Route("api/ai")]

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace GymLog.Api.Models;
 
 public sealed class WorkoutLog
@@ -37,12 +39,14 @@ public sealed class WorkoutExercise
     public List<CardioEntry> Cardio { get; set; } = [];
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ExerciseCategory
 {
     Strength = 0,
     Cardio = 1
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum WeightEntryMode
 {
     Total = 0,

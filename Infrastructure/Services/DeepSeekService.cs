@@ -12,12 +12,14 @@ using Microsoft.Extensions.Options;
 
 namespace GymLog.Api.AI;
 
-public sealed class DeepSeekService : IDeepSeekService
+public sealed class DeepSeekService(
+    HttpClient httpClient,
+    IOptions<DeepSeekOptions> options,
+    IMemoryCache cache,
+    ILogger<DeepSeekService> logger)
+    : IDeepSeekService
 {
-    private readonly HttpClient _httpClient;
-    private readonly DeepSeekOptions _options;
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<DeepSeekService> _logger;
+    private readonly DeepSeekOptions _options = options.Value;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -370,19 +372,7 @@ public sealed class DeepSeekService : IDeepSeekService
     Return JSON only.
     """;
 
-    public DeepSeekService(
-        HttpClient httpClient,
-        IOptions<DeepSeekOptions> options,
-        IMemoryCache cache,
-        ILogger<DeepSeekService> logger)
-    {
-        _httpClient = httpClient;
-        _options = options.Value;
-        _cache = cache;
-        _logger = logger;
-    }
-
-    public async Task<ParseWorkoutResult> ParseWorkoutAsync(
+   public async Task<ParseWorkoutResult> ParseWorkoutAsync(
         string rawText,
         bool barbellWeightsArePerSide,
         CancellationToken cancellationToken = default)
@@ -393,7 +383,7 @@ public sealed class DeepSeekService : IDeepSeekService
         var normalized = rawText.Trim();
         var cacheKey = $"workout-ai:{ComputeHash(normalized)}";
 
-        if (_cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached))
+        if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached))
         {
             return cached!;
         }
@@ -442,7 +432,7 @@ public sealed class DeepSeekService : IDeepSeekService
             ]
         };
 
-        using var response = await _httpClient.PostAsJsonAsync(
+        using var response = await httpClient.PostAsJsonAsync(
             "chat/completions",
             request,
             JsonOptions,
@@ -452,7 +442,7 @@ public sealed class DeepSeekService : IDeepSeekService
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError(
+            logger.LogError(
                 "DeepSeek request failed. Status={StatusCode}, Body={Body}",
                 response.StatusCode,
                 responseBody);
@@ -497,7 +487,7 @@ public sealed class DeepSeekService : IDeepSeekService
             usage?.PromptTokens ?? 0,
             usage?.CompletionTokens ?? 0);
 
-        _cache.Set(
+        cache.Set(
             cacheKey,
             result,
             TimeSpan.FromMinutes(_options.CacheMinutes));
