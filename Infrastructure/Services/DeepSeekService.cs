@@ -3,29 +3,22 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Core.Configuration;
-using Core.Models;
+using GymLog.Api.AI;
 using GymLog.Api.Models;
 using Infrastructure.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace GymLog.Api.AI;
+namespace Infrastructure.Services;
 
-public sealed class DeepSeekService(
-    HttpClient httpClient,
-    IOptions<DeepSeekOptions> options,
-    IMemoryCache cache,
-    ILogger<DeepSeekService> logger)
-    : IDeepSeekService
+public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, ILogger<DeepSeekService> logger) : IDeepSeekService
 {
     private readonly DeepSeekOptions _options = options.Value;
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
-
    private const string SystemPrompt = """
     You are a highly accurate gym workout log parser.
 
@@ -372,21 +365,13 @@ public sealed class DeepSeekService(
     Return JSON only.
     """;
 
-   public async Task<ParseWorkoutResult> ParseWorkoutAsync(
-        string rawText,
-        bool barbellWeightsArePerSide,
-        CancellationToken cancellationToken = default)
+   public async Task<ParseWorkoutResult> ParseWorkoutAsync(string rawText, bool barbellWeightsArePerSide, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(rawText))
-            throw new ArgumentException("Workout text is required.", nameof(rawText));
+        if (string.IsNullOrWhiteSpace(rawText)) throw new ArgumentException("Workout text is required.", nameof(rawText));
 
         var normalized = rawText.Trim();
         var cacheKey = $"workout-ai:{ComputeHash(normalized)}";
-
-        if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached))
-        {
-            return cached!;
-        }
+        if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached)) { return cached!; }
 
         var request = new DeepSeekChatRequest
         {
@@ -432,28 +417,16 @@ public sealed class DeepSeekService(
             ]
         };
 
-        using var response = await httpClient.PostAsJsonAsync(
-            "chat/completions",
-            request,
-            JsonOptions,
-            cancellationToken);
-
+        using var response = await httpClient.PostAsJsonAsync("chat/completions", request, JsonOptions, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogError(
-                "DeepSeek request failed. Status={StatusCode}, Body={Body}",
-                response.StatusCode,
-                responseBody);
-
-            throw new HttpRequestException(
-                $"DeepSeek returned {(int)response.StatusCode}: {responseBody}");
+            logger.LogError("DeepSeek request failed. Status={StatusCode}, Body={Body}", response.StatusCode, responseBody);
+            throw new HttpRequestException($"DeepSeek returned {(int)response.StatusCode}: {responseBody}");
         }
 
-        var deepSeekResponse = JsonSerializer.Deserialize<DeepSeekChatResponse>(
-            responseBody,
-            JsonOptions);
+        var deepSeekResponse = JsonSerializer.Deserialize<DeepSeekChatResponse>(responseBody, JsonOptions);
 
         var content = deepSeekResponse?
             .Choices
@@ -461,23 +434,11 @@ public sealed class DeepSeekService(
             .Message?
             .Content;
 
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            throw new InvalidOperationException(
-                "DeepSeek returned an empty response.");
-        }
+        if (string.IsNullOrWhiteSpace(content)) { throw new InvalidOperationException("DeepSeek returned an empty response."); }
+        var workout = JsonSerializer.Deserialize<WorkoutLog>(content, JsonOptions);
+        if (workout is null) { throw new InvalidOperationException("DeepSeek returned JSON that could not be parsed as WorkoutLog."); }
 
-        var workout = JsonSerializer.Deserialize<WorkoutLog>(
-            content,
-            JsonOptions);
-
-        if (workout is null)
-        {
-            throw new InvalidOperationException(
-                "DeepSeek returned JSON that could not be parsed as WorkoutLog.");
-        }
-
-        var usage = deepSeekResponse.Usage;
+        var usage = deepSeekResponse?.Usage;
 
         var result = new ParseWorkoutResult(
             workout,
@@ -487,18 +448,13 @@ public sealed class DeepSeekService(
             usage?.PromptTokens ?? 0,
             usage?.CompletionTokens ?? 0);
 
-        cache.Set(
-            cacheKey,
-            result,
-            TimeSpan.FromMinutes(_options.CacheMinutes));
-
+        cache.Set(cacheKey, result, TimeSpan.FromMinutes(_options.CacheMinutes));
         return result;
     }
 
     private static string ComputeHash(string value)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-
         return Convert.ToHexString(bytes);
     }
 }
