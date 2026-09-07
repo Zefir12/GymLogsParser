@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace GymLog.Api.Models;
+namespace Core.Models;
 
 public sealed class WorkoutLog
 {
@@ -10,21 +10,42 @@ public sealed class WorkoutLog
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Parsed from "start 17:30" style entries in the raw log.
+    /// </summary>
+    public TimeOnly? StartTime { get; set; }
+
+    /// <summary>
+    /// Parsed from "koniec 18:46" style entries in the raw log.
+    /// </summary>
+    public TimeOnly? EndTime { get; set; }
+
+    /// <summary>
+    /// Training partners mentioned in the log (normalized to nominative form).
+    /// Empty if none were mentioned.
+    /// </summary>
+    public List<string> Persons { get; set; } = [];
+
     public List<WorkoutExercise> Exercises { get; set; } = [];
 }
 
 public sealed class WorkoutExercise
 {
     /// <summary>
-    /// Stable ID from the application's exercise catalog.
+    /// Stable ID from the application's exercise catalog. The only exercise
+    /// identity field requested from the model.
     /// </summary>
     public string ExerciseId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Canonical display name from the catalog.
+    /// Canonical display name from the catalog. Hydrated server-side
+    /// after parsing — never requested from the model.
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Hydrated server-side from the catalog — never requested from the model.
+    /// </summary>
     public string? MuscleGroup { get; set; }
 
     /// <summary>
@@ -32,7 +53,17 @@ public sealed class WorkoutExercise
     /// </summary>
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Derived server-side from whether Cardio or Sets is populated —
+    /// never requested from the model.
+    /// </summary>
     public ExerciseCategory Category { get; set; }
+
+    /// <summary>
+    /// How weights are entered for this exercise. Requested from the model
+    /// only for barbell exercises; defaults to Total otherwise.
+    /// </summary>
+    public WeightEntryMode WeightEntryMode { get; set; }
 
     public List<WorkoutSet> Sets { get; set; } = [];
 
@@ -55,19 +86,16 @@ public enum WeightEntryMode
 
 public sealed class WorkoutSet
 {
-    public int? SetNumber { get; set; }
+    /// <summary>
+    /// Assigned server-side from array position — never requested from the model.
+    /// </summary>
+    public int SetNumber { get; set; }
 
     /// <summary>
     /// Final normalized total weight on the bar/machine/dumbbell.
     /// Always kilograms.
     /// </summary>
     public decimal? Weight { get; set; }
-
-    /// <summary>
-    /// How the user wrote the weight.
-    /// This is important for auditing AI interpretation.
-    /// </summary>
-    public WeightEntryMode WeightEntryMode { get; set; }
 
     public int? Reps { get; set; }
 

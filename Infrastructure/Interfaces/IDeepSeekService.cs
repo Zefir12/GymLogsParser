@@ -1,5 +1,4 @@
 using Core.Models;
-using GymLog.Api.Models;
 
 namespace Infrastructure.Interfaces;
 

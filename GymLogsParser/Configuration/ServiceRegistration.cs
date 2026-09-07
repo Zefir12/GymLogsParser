@@ -1,9 +1,7 @@
-using System.Text;
 using Core.Configuration;
 using GymLog.Api.AI;
 using Infrastructure.Interfaces;
 using Infrastructure.Services;
-using Microsoft.AspNetCore.Authorization;
 
 namespace GymLogsParser.Configuration;
 

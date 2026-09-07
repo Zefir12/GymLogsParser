@@ -1,4 +1,4 @@
-using GymLog.Api.Models;
+using Core.Models;
 using Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
