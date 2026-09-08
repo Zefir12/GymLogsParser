@@ -33,6 +33,9 @@ public sealed class AiController(IDeepSeekService deepSeek) : ControllerBase
         catch (HttpRequestException ex) { return StatusCode(StatusCodes.Status502BadGateway, new{error = "The AI provider request failed.",detail = ex.Message}); }
         catch (Exception ex) {  return StatusCode( StatusCodes.Status500InternalServerError, new { error = "Workout parsing failed.", detail = ex.Message }); }
     }
+    
+    
+    
 }
 
 public sealed class ParseWorkoutRequest

@@ -1,9 +1,13 @@
+```vue
 <script setup lang="ts">
 defineProps<{
   workout: {
     title: string;
     date: string;
     notes: string | null;
+    startTime: string | null;
+    endTime: string | null;
+    persons: string[];
   };
 }>();
 </script>
@@ -18,6 +22,43 @@ defineProps<{
     <label>
       <span>Date</span>
       <input v-model="workout.date" type="date" />
+    </label>
+
+    <label>
+      <span>Start time</span>
+      <input
+        v-model="workout.startTime"
+        type="text"
+        inputmode="numeric"
+        placeholder="17:47"
+        pattern="^([01]\d|2[0-3]):[0-5]\d$"
+      />
+    </label>
+
+    <label>
+      <span>End time</span>
+      <input
+        v-model="workout.endTime"
+        type="text"
+        inputmode="numeric"
+        placeholder="19:40"
+        pattern="^([01]\d|2[0-3]):[0-5]\d$"
+      />
+    </label>
+
+    <label class="full-width">
+      <span>Persons</span>
+      <input
+        :value="workout.persons.join(', ')"
+        type="text"
+        placeholder="Karol, Marek, Hubert"
+        @input="
+          workout.persons = ($event.target as HTMLInputElement).value
+            .split(',')
+            .map((person) => person.trim())
+            .filter(Boolean)
+        "
+      />
     </label>
 
     <label class="full-width">
@@ -104,3 +145,4 @@ defineProps<{
   }
 }
 </style>
+```

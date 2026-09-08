@@ -175,5 +175,8 @@ public static class ExerciseCatalog
         new("hip-circles", "Hip Circles", "Cardio", "Hips", false),
         new("bodyweight-good-morning", "Bodyweight Good Morning", "Strength", "Hamstrings", false),
         new("worlds-greatest-stretch", "World's Greatest Stretch", "Strength", "Full Body", false),
+        new("chest-press", "Chest Press", "Strength", "Chest", false),
+        new("good-girl", "Good Girl", "Strength", "Glutes", false),
+        new("bad-girl", "Bad Girl", "Strength", "Glutes", false),
     ];
 }

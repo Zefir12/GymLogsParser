@@ -9,7 +9,7 @@ public static class DatabaseRegistration
     {
         public IServiceCollection AddDatabase(IConfiguration configuration)
         {
-            var connectionString = configuration.GetConnectionString("Default");
+            var connectionString = configuration.GetConnectionString("GymLogs");
 
             services.AddPooledDbContextFactory<AppDbContext>(options =>
                 options.UseNpgsql(connectionString));

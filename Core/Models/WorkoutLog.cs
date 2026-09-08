@@ -59,12 +59,6 @@ public sealed class WorkoutExercise
     /// </summary>
     public ExerciseCategory Category { get; set; }
 
-    /// <summary>
-    /// How weights are entered for this exercise. Requested from the model
-    /// only for barbell exercises; defaults to Total otherwise.
-    /// </summary>
-    public WeightEntryMode WeightEntryMode { get; set; }
-
     public List<WorkoutSet> Sets { get; set; } = [];
 
     public List<CardioEntry> Cardio { get; set; } = [];

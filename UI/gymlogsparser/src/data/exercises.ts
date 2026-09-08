@@ -1171,4 +1171,11 @@ export const exercises: ExerciseDefinition[] = [
     muscleGroup: "Full Body",
     barbell: false,
   },
+  {
+    id: "chest-press",
+    name: "Chest Press",
+    category: "Strength",
+    muscleGroup: "Chest",
+    barbell: false,
+  },
 ];

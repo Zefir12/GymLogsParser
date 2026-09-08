@@ -1,7 +1,10 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Core.Configuration;
 using Core.Models;
 using GymLog.Api.AI;
@@ -15,43 +18,30 @@ namespace Infrastructure.Services;
 public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, ILogger<DeepSeekService> logger) : IDeepSeekService
 {
     private readonly DeepSeekOptions _options = options.Value;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
-    // Built once from Core.Models.ExerciseCatalog.All for O(1) lookups when
-    // hydrating exerciseId -> Name/MuscleGroup/Category after parsing.
-    private static readonly IReadOnlyDictionary<string, ExerciseDefinition> CatalogById =
-        ExerciseCatalog.All.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-
-    // The fully-resolved system prompt: the template below with
-    // {{EXERCISE_ID_GROUPS}} filled in from the catalog, computed once at
-    // class load. The result is a fixed string for the lifetime of the
-    // process, so DeepSeek's prefix cache still keys off it identically
-    // across requests — this indirection only exists so the ID list can't
-    // drift out of sync with Core.Models.ExerciseCatalog.
-    //
-    // NOTE ON CACHING: keep everything else here byte-identical across
-    // requests. All genuinely per-request variability (barbellWeightsArePerSide,
-    // the raw log text) lives in the user message, appended AFTER this prefix,
-    // so cache hits are preserved.
-    private static readonly string SystemPrompt = SystemPromptTemplate.Replace(
-        "{{EXERCISE_ID_GROUPS}}", BuildExerciseIdGroups());
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    private static readonly IReadOnlyDictionary<string, ExerciseDefinition> CatalogById = ExerciseCatalog.All.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+    private static readonly string SystemPrompt = SystemPromptTemplate.Replace("{{EXERCISE_ID_GROUPS}}", BuildExerciseIdGroups());
 
     private static string BuildExerciseIdGroups()
     {
-        // Preserves catalog order within each muscle group, groups appear in
-        // first-seen order. Plain "id, id, id" lines — no names/descriptions —
-        // keeps this section as compact as possible while still giving the
-        // model the full valid ID space and a muscle-group hint for free.
         var groups = ExerciseCatalog.All
             .GroupBy(e => e.MuscleGroup)
             .Select(g => $"{g.Key}: {string.Join(", ", g.Select(e => e.Id))}");
 
         return string.Join("\n", groups);
     }
-
+    
+    private static readonly BodyweightPoint[] BodyweightHistory = 
+        [
+            new("2018-12-17", 66.0), new("2019-02-04", 66.4), new("2019-04-03", 67.0), new("2019-05-20", 65.1), new("2019-08-02", 65.3), new("2019-09-02", 66.1), new("2019-10-19", 67.0), new("2019-12-21", 65.0),
+            new("2020-07-26", 67.0), new("2022-08-01", 70.05), new("2022-08-18", 69.6), new("2023-08-01", 70.4), new("2023-08-10", 71.6), new("2023-08-14", 72.2), new("2023-08-20", 72.0), new("2023-08-28", 73.8),
+            new("2023-09-03", 74.5), new("2023-09-08", 75.4), new("2023-09-13", 75.9), new("2023-09-18", 76.0), new("2023-09-23", 76.4), new("2023-09-29", 76.9), new("2023-10-04", 75.0), new("2023-10-12", 74.6),
+            new("2023-10-20", 74.5), new("2023-11-29", 73.0), new("2024-01-11", 72.4), new("2024-02-08", 72.9), new("2024-02-22", 75.5), new("2024-03-13", 73.3), new("2024-04-17", 75.7), new("2024-05-23", 78.2),
+            new("2024-06-19", 77.1), new("2024-07-06", 78.8), new("2024-08-11", 78.5), new("2024-09-20", 81.2), new("2024-10-16", 82.7), new("2024-11-25", 82.3), new("2024-12-30", 84.4), new("2025-01-26", 85.3),
+            new("2025-02-19", 86.1), new("2025-03-15", 84.9), new("2025-04-17", 85.7), new("2025-05-30", 87.7), new("2025-06-14", 87.0), new("2025-07-19", 86.7), new("2025-08-14", 84.6), new("2025-09-03", 83.7),
+            new("2025-10-27", 80.7), new("2025-12-17", 84.4), new("2026-01-21", 87.4), new("2026-03-23", 89.1), new("2026-05-04", 90.1), new("2026-07-08", 91.9), new("2026-07-23", 91.7), new("2026-08-06", 91.0)
+        ];
+    
     private const string SystemPromptTemplate = """
     You are a highly accurate gym workout log parser.
 
@@ -60,28 +50,49 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
     The user writes mostly in Polish, English, abbreviations, typos, missing punctuation,
     and shorthand. You must understand this notation without requiring clean grammar.
 
-    OUTPUT RULES
-    ------------
-    1. Output ONLY valid JSON.
-    2. Never output markdown.
-    3. Never output explanations outside JSON.
-    4. Never invent a weight, rep count, duration, distance, RIR or RPE.
-    5. Preserve information whenever possible.
-    6. If information is unknown, OMIT the key entirely. Never write "key": null.
-       This applies to every optional field at every level (workout, exercise, set, cardio).
-    7. Never silently discard a comment.
-    8. Comments attached to an exercise belong in that exercise's "notes".
-    9. Comments attached to a specific set belong in that set's "notes".
-    10. General workout comments belong in workout "notes".
-    11. "r0", "r1", "r2", "r3", "r4" means RIR, NOT reps.
-    12. "x", "×" can mean multiplication/set notation depending on context.
-    13. "2setsx14repsx15kg" means 2 sets, 14 reps, 15 kg.
-    14. "20kgx20repsx3sets" means 3 sets, 20 kg, 20 reps.
-    15. If "x10, x8, x6" follows an already established weight, reuse that weight.
-    16. "0kg" or "0x" generally means bodyweight/no added weight.
-    17. Do not invent the actual bodyweight.
-    18. "jeden" / "one" used before a weight means one set.
-    19. Preserve unusual comments and observations.
+    OUTPUT RULES 
+    ------------ 
+    1. Output ONLY valid JSON. 
+    2. Never output markdown. 
+    3. Never output explanations outside JSON. 
+    4. Never invent a weight, rep count, duration, distance, RIR or RPE. 
+    5. Preserve information whenever possible. 
+    6. If information is unknown, OMIT the key entirely. Never write "key": null. 
+    7. Never silently discard a comment. 
+    8. Comments attached to an exercise belong in that exercise's "notes". 
+    9. Comments attached to a specific set belong in that set's "notes". 
+    10. General workout comments belong in workout "notes". 
+    11. "r0", "r1", "r2", "r3", "r4" means RIR, NOT reps. 
+    12. "x", "×" can mean multiplication/set notation depending on context. 
+    13. "2setsx14repsx15kg" means 2 sets, 14 reps, 15 kg. 
+    14. "20kgx20repsx3sets" means 3 sets, 20 kg, 20 reps. 
+    15. If "x10, x8, x6" follows an already established weight, reuse that weight. 
+    16. "0kg" or "0x" generally means bodyweight/no added weight. 
+    17. When bodyweight is available below, it may be used for bodyweight exercises. 
+    18. "jeden" / "one" used before a weight means one set. 
+    19. Preserve unusual comments and observations. 
+    
+    BODYWEIGHT 
+    ---------- 
+    A bodyweight value may be supplied in the user message as: 
+    
+    bodyweightKg = 86.7 
+    
+    This is the user's estimated bodyweight for the workout date. 
+    Use this value ONLY for exercises that are genuinely performed with the user's bodyweight, such as:
+     - pull-ups / chin-ups - dips - push-ups - bodyweight squats - other explicitly bodyweight movements 
+    If a bodyweight exercise has no added external weight: - output weight = bodyweightKg - this 
+    represents the user's total bodyweight contribution/load - do NOT output 0 merely because 
+    the exercise is bodyweight If the log explicitly specifies additional weight for a bodyweight exercise, 
+    preserve the distinction: - the written weight is the ADDED external load - do not replace it 
+    with bodyweightKg - do not silently add bodyweightKg to the written number unless the output semantics 
+    explicitly require total load IMPORTANT: The bodyweight value is an estimate derived from 
+    historical measurements. It must NOT override an explicit bodyweight stated in the workout log. 
+    If bodyweightKg is unavailable, do not invent bodyweight. Examples: "pullups x8" with 
+    bodyweightKg = 86.7 -> weight = 86.7 "dips 10, 8, 7" with bodyweightKg = 86.7 -> weight = 86.7 for 
+    each set "pullups +10kg x6" with bodyweightKg = 86.7 -> weight = 10 "dips +20kg x5" with 
+    bodyweightKg = 86.7 -> weight = 20 "pushups 3x15" with bodyweightKg = 86.7 -> weight = 86.7 
+    Never invent bodyweight when bodyweightKg is unavailable.
 
     EXERCISE MATCHING
     -----------------
@@ -115,6 +126,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
     martwy (ciąg) = deadlift · siady/siad/przysiad = squat · wiosło = row
     ohp = overhead press · hantle = dumbbell · sztanga = barbell
     biceps = curl (biceps) · triceps = extension/pushdown (triceps)
+    jaja byka = rop push down
     rozpiętki = fly · dipy = dip · brzuch/brzuszki = crunch/sit-up
     łydy = calf raise · podciągnięcia/podciąganie = pull-up
     legpress = leg press · hamstringi = leg curl
@@ -161,104 +173,87 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
 
     A workout can contain both strength and cardio exercises.
 
-    WEIGHTS
-    -------
-    All weights in the output are kilograms.
-
-    Do NOT output a unit field.
-
-    "weightEntryMode" belongs on the EXERCISE, not on individual sets, since it
-    never changes between sets of the same exercise. Output it ONLY for barbell
-    exercises. Omit it entirely for dumbbell, machine, cable, bodyweight, and
-    cardio exercises.
-
-    The parser receives a setting:
-
-    barbellWeightsArePerSide
-
-    When false:
-        "100kg" on a barbell exercise means 100 kg total.
-
-    When true:
-        for BARBELL exercises:
-        "40kg" means 40 kg on EACH SIDE.
-        Therefore:
-            40 kg + 40 kg + 20 kg bar = 100 kg total.
-
-    When true, set the exercise's "weightEntryMode": "PerSide".
-    When false, set the exercise's "weightEntryMode": "Total".
-
-    The 20 kg Olympic bar assumption applies ONLY to barbell exercises.
-
-    Do not add 20 kg to:
+    WEIGHT NORMALIZATION
+    --------------------
+    
+    IMPORTANT:
+    The "weight" in the output is ALWAYS the FINAL TOTAL LOAD IN KG.
+    
+    The user's written number may need conversion.
+    
+    BARBELL SETTING
+    ---------------
+    The user message contains exactly one setting:
+    
+    barbellWeightsArePerSide = true
+    OR
+    barbellWeightsArePerSide = false
+    
+    You MUST use this setting.
+    
+    WHEN barbellWeightsArePerSide = true:
+    
+    For EVERY BARBELL exercise:
+    user weight = weight on ONE SIDE.
+    
+    Convert it to total load:
+    
+        total weight = (user weight × 2) + 20
+    
+    The 20 kg is the Olympic bar.
+    
+    Examples:
+    - "bench 40kg x 8" → weight = 100
+    - "bench 60kg x 5" → weight = 140
+    - "bench 100kg x 5" → weight = 220
+    - "deadlift 50kg x 5" → weight = 120
+    
+    Set:
+    "weightEntryMode": "PerSide"
+    
+    WHEN barbellWeightsArePerSide = false:
+    
+    For EVERY BARBELL exercise:
+    user weight = TOTAL LOAD.
+    
+    Do NOT double it.
+    Do NOT add 20 kg.
+    
+    Examples:
+    - "bench 40kg x 8" → weight = 40
+    - "bench 60kg x 5" → weight = 60
+    - "bench 100kg x 5" → weight = 100
+    
+    Set:
+    "weightEntryMode": "Total"
+    
+    IMPORTANT:
+    The conversion applies ONLY to BARBELL exercises.
+    
+    Never apply the barbell conversion to:
     - dumbbells
+    - cables
     - machines
     - leg press
-    - cables
-    - bodyweight
+    - bodyweight exercises
     - cardio
-    - other non-barbell exercises
-
-    If the log explicitly says "20kg sztanga" or otherwise clearly refers to
-    the empty bar, the resulting total is 20 kg.
-
-    If a barbell exercise says "0", "0kg", or "0x", this represents an empty bar
-    or bodyweight/no added load depending on the exercise context.
-
-    IMPORTANT:
-    The output "weight" on each set is always the NORMALIZED TOTAL LOAD.
-
-    Example with barbellWeightsArePerSide=true:
-
-    "lawka 40kg x 8"
-
-    becomes an exercise with weightEntryMode "PerSide" and a set with:
-
-    weight = 100
-
-    Example:
-
-    "lawka 100kg x 5"
-
-    becomes weightEntryMode "PerSide" and set weight = 220,
-    ONLY if the setting says weights are per-side.
-
-    If the setting says false:
-
-    "lawka 100kg x 5"
-
-    becomes weightEntryMode "Total" and set weight = 100.
-
-    DUMBBELLS
-    ---------
-    Do not double dumbbell weights.
-
-    If the log says:
-
-    "incline dumbbell press 22.5kg"
-
-    output:
-
-    weight = 22.5
-
-    Do not turn it into 45 kg.
-
-    LEG PRESS
-    ---------
-    Leg press notation may be ambiguous.
-
-    If the user explicitly says "per side", preserve that information in notes
-    and use the user's stated value as the normalized recorded weight unless
-    the application has a separate leg-press loading convention.
-
-    Do NOT automatically add a barbell.
-
-    FARMER WALK
-    -----------
-    For farmer walk, weight normally refers to the load carried in each hand
-    if the user explicitly indicates one-hand/dumbbell loading.
-
-    Do not invent a doubled total unless the text explicitly supports it.
+    - farmer walks
+    
+    DUMBBELLS:
+    "22.5kg dumbbell press" → weight = 22.5
+    
+    Do NOT convert 22.5 to 45.
+    
+    EMPTY BAR:
+    If the log explicitly says the bar itself is 20 kg, output weight = 20.
+    
+    If a barbell set says "0kg" and it means an empty Olympic bar:
+    - per-side mode: weight = 20
+    - total mode: weight = 20
+    
+    If "0kg" means bodyweight/no external load, output weight = 0.
+    
+    Never invent bodyweight.
 
     WARMUPS
     -------
@@ -358,7 +353,6 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         {
           "exerciseId": "canonical ID",
           "notes": "string, optional",
-          "weightEntryMode": "Total or PerSide, ONLY for barbell exercises",
           "sets": [
             {
               "weight": 100,
@@ -391,11 +385,26 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
 
     public async Task<ParseWorkoutResult> ParseWorkoutAsync(string rawText, bool barbellWeightsArePerSide, CancellationToken cancellationToken = default)
     {
+        var sw = Stopwatch.StartNew();
         if (string.IsNullOrWhiteSpace(rawText)) throw new ArgumentException("Workout text is required.", nameof(rawText));
 
         var normalized = rawText.Trim();
+        
+        var workoutDate = TryExtractWorkoutDate(normalized); 
+        var bodyweightKg = workoutDate.HasValue ? GetInterpolatedBodyweight(workoutDate.Value) : (double?)null;
+        logger.LogInformation("Pre-cache setup: {Ms}ms", sw.ElapsedMilliseconds);
+        
         var cacheKey = $"workout-ai:{ComputeHash(normalized)}:{barbellWeightsArePerSide}";
         if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached)) { return cached!; }
+        logger.LogInformation("Cache check: {Ms}ms", sw.ElapsedMilliseconds);
+        
+        var bodyweightPrompt = bodyweightKg.HasValue
+            ? $"""
+                workoutDate = {workoutDate:yyyy-MM-dd} bodyweightKg = {bodyweightKg.Value.ToString("0.0", CultureInfo.InvariantCulture)} 
+               This bodyweight was estimated from the user's historical weight measurements by linearly interpolating between 
+               the two surrounding historical anchor dates. Use it for unweighted bodyweight exercises when appropriate. 
+               """
+            : """ workoutDate = unavailable bodyweightKg = unavailable No reliable workout date was found in the log, so bodyweight must NOT be inferred or invented. """;
 
         var request = new DeepSeekChatRequest
         {
@@ -411,38 +420,24 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
                 Type = "json_object"
             },
             Messages =
-            [
-                new DeepSeekMessage
-                {
-                    Role = "system",
-                    Content = SystemPrompt
-                },
-                new DeepSeekMessage
-                {
-                    Role = "user",
-                    Content = $"""
-                               Parse the following gym workout log.
-
-                               PARSING SETTINGS
-                               ----------------
-                               barbellWeightsArePerSide = {barbellWeightsArePerSide.ToString().ToLowerInvariant()}
-
-                               If this is true, bare numeric weights on barbell exercises are plates
-                               on ONE SIDE of the bar.
-
-                               If this is false, bare numeric weights on barbell exercises are the
-                               TOTAL weight including the bar.
-
-                               WORKOUT LOG
-                               -----------
-                               {normalized}
-                               """
-                }
-            ]
+                [
+                    new DeepSeekMessage { Role = "system", Content = SystemPrompt },
+                    new DeepSeekMessage
+                    {
+                        Role = "user",
+                        Content =
+                            $$""" Parse the following gym workout log. PARSING SETTING — MUST FOLLOW barbellWeightsArePerSide = {{barbellWeightsArePerSide.ToString().ToLowerInvariant()}} {{bodyweightPrompt}} Barbell setting: - If true, barbell weights are PER SIDE and must be converted to total load using (weight × 2) + 20. - If false, barbell weights are already TOTAL LOAD. - This setting applies only to barbells. Bodyweight: - Use bodyweightKg only for genuinely unweighted bodyweight exercises such as pull-ups, dips, push-ups, etc. - If an exercise has explicit added weight, preserve that added weight instead. - Never invent bodyweight when bodyweightKg is unavailable. WORKOUT LOG ----------- {{normalized}} """
+                    }
+                ]
         };
 
+        logger.LogInformation("Request built: {Ms}ms", sw.ElapsedMilliseconds);
+        
         using var response = await httpClient.PostAsJsonAsync("chat/completions", request, JsonOptions, cancellationToken);
+        logger.LogInformation("HTTP call done: {Ms}ms", sw.ElapsedMilliseconds);
+        
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogInformation("Body read: {Ms}ms", sw.ElapsedMilliseconds);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -475,6 +470,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
             usage?.CompletionTokens ?? 0);
 
         cache.Set(cacheKey, result, TimeSpan.FromMinutes(_options.CacheMinutes));
+        logger.LogInformation("Total: {Ms}ms", sw.ElapsedMilliseconds);
         return result;
     }
 
@@ -496,13 +492,6 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
                 exercise.Category = string.Equals(catalogEntry.Category, "Cardio", StringComparison.OrdinalIgnoreCase)
                     ? ExerciseCategory.Cardio
                     : ExerciseCategory.Strength;
-
-                // Non-barbell exercises never carry a per-side/total distinction —
-                // force it back to Total even if the model mistakenly emitted one.
-                if (!catalogEntry.Barbell)
-                {
-                    exercise.WeightEntryMode = WeightEntryMode.Total;
-                }
             }
             else
             {
@@ -523,9 +512,20 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         }
     }
 
+    
+    private static DateOnly? TryExtractWorkoutDate(string text) { // Prefer ISO dates: 2026-08-06
+    var isoMatch = Regex.Match( text, @"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)"); if (isoMatch.Success && int.TryParse(isoMatch.Groups[1].Value, out var isoYear) && int.TryParse(isoMatch.Groups[2].Value, out var isoMonth) && int.TryParse(isoMatch.Groups[3].Value, out var isoDay)) { try { return new DateOnly(isoYear, isoMonth, isoDay); } catch (ArgumentOutOfRangeException) {  } }
+        // Polish/common format: 06.08.2026 / 06/08/2026
+        var europeanMatch = Regex.Match( text, @"(?<!\d)(\d{1,2})[./](\d{1,2})[./](\d{4})(?!\d)"); if (europeanMatch.Success && int.TryParse(europeanMatch.Groups[1].Value, out var day) && int.TryParse(europeanMatch.Groups[2].Value, out var month) && int.TryParse(europeanMatch.Groups[3].Value, out var year)) { try { return new DateOnly(year, month, day); } catch (ArgumentOutOfRangeException) {  } } return null; }
+        
+    private static double GetInterpolatedBodyweight(DateOnly date) { if (date <= BodyweightHistory[0].Date) return BodyweightHistory[0].WeightKg; if (date >= BodyweightHistory[^1].Date) return BodyweightHistory[^1].WeightKg; for (var i = 1; i < BodyweightHistory.Length; i++) { var previous = BodyweightHistory[i - 1]; var next = BodyweightHistory[i]; if (date > next.Date) continue; if (date == next.Date) return next.WeightKg; var totalDays = next.Date.DayNumber - previous.Date.DayNumber; var elapsedDays = date.DayNumber - previous.Date.DayNumber; var fraction = (double)elapsedDays / totalDays; return previous.WeightKg + ((next.WeightKg - previous.WeightKg) * fraction); } return BodyweightHistory[^1].WeightKg; }
+    
+    
     private static string ComputeHash(string value)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
         return Convert.ToHexString(bytes);
     }
+    
+    private readonly record struct BodyweightPoint( string DateString, double WeightKg) { public DateOnly Date => DateOnly.ParseExact( DateString, "yyyy-MM-dd", CultureInfo.InvariantCulture); }
 }

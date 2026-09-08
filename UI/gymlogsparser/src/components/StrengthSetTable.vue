@@ -306,9 +306,8 @@ onBeforeUnmount(() => {
 
   outline: 0;
 
-  background: var(--glass-soft);
   color: var(--text-secondary);
-
+  background: var(--bg-void);
   font-size: 9px;
 
   transition: border-color 150ms var(--ease);
