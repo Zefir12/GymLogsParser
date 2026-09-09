@@ -1178,4 +1178,18 @@ export const exercises: ExerciseDefinition[] = [
     muscleGroup: "Chest",
     barbell: false,
   },
+  {
+    id: "good-girl",
+    name: "Good Girl",
+    category: "Strength",
+    muscleGroup: "Glutes",
+    barbell: false,
+  },
+  {
+    id: "bad-girl",
+    name: "Bad Girl",
+    category: "Strength",
+    muscleGroup: "Glutes",
+    barbell: false,
+  },
 ];

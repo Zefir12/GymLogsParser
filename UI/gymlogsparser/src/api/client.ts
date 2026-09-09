@@ -1,4 +1,5 @@
 import type { ParseWorkoutResponse, WorkoutLog } from "@/types/workout";
+import type { ExerciseProgressPoint, ExerciseSummary } from "@/types/exercise";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:5238/api";
@@ -51,4 +52,16 @@ export async function saveWorkout(workout: WorkoutLog): Promise<WorkoutLog> {
     method: "POST",
     body: JSON.stringify(workout),
   });
+}
+
+export async function getExercises(): Promise<ExerciseSummary[]> {
+  return request<ExerciseSummary[]>("/exercises");
+}
+
+export async function getExerciseProgress(
+  exerciseId: string,
+): Promise<ExerciseProgressPoint[]> {
+  return request<ExerciseProgressPoint[]>(
+    `/exercises/${encodeURIComponent(exerciseId)}/progress`,
+  );
 }

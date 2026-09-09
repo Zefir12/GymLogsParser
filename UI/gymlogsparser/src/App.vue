@@ -1,44 +1,24 @@
 <script setup lang="ts">
-import { nextTick } from "vue";
-import { storeToRefs } from "pinia";
-
-import { useWorkoutStore } from "@/stores/workout";
-
-import AppHeader from "@/components/AppHeader.vue";
-import WorkoutInputPanel from "@/components/WorkoutInputPanel.vue";
-import WorkoutEditorPanel from "@/components/WorkoutEditorPanel.vue";
-
-const store = useWorkoutStore();
-const { rawText, workout, loading, barbellWeightsArePerSide } =
-  storeToRefs(store);
-
-async function parseWorkout() {
-  await store.parse();
-  await nextTick();
-
-  if (workout.value.exercises.length > 0) {
-    document.querySelector(".editor-panel")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-}
+import { RouterLink, RouterView } from "vue-router";
 </script>
 
 <template>
   <main class="app-shell">
-    <AppHeader @new-workout="store.newWorkout" />
+    <nav class="top-nav">
+      <RouterLink
+        to="/"
+        class="nav-link"
+        active-class="active"
+        exact-active-class="active"
+      >
+        Log workout
+      </RouterLink>
+      <RouterLink to="/progress" class="nav-link" active-class="active">
+        Progress
+      </RouterLink>
+    </nav>
 
-    <section class="workspace">
-      <WorkoutInputPanel
-        v-model:raw-text="rawText"
-        v-model:barbell-weights-are-per-side="barbellWeightsArePerSide"
-        :loading="loading"
-        @parse="parseWorkout"
-      />
-
-      <WorkoutEditorPanel />
-    </section>
+    <RouterView />
   </main>
 </template>
 
@@ -50,24 +30,41 @@ async function parseWorkout() {
   color: var(--text-secondary);
 }
 
-.workspace {
+.top-nav {
   max-width: 1500px;
-  margin: 0 auto;
+  margin: 0 auto 18px;
 
-  display: grid;
-  grid-template-columns:
-    minmax(350px, 0.75fr)
-    minmax(650px, 1.25fr);
+  display: flex;
+  gap: 4px;
 
-  gap: 18px;
+  padding: 4px;
+  width: fit-content;
 
-  align-items: start;
+  background: var(--glass-soft);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
 }
 
-@media (max-width: 1100px) {
-  .workspace {
-    grid-template-columns: 1fr;
-  }
+.nav-link {
+  padding: 7px 16px;
+
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+
+  border-radius: var(--radius-lg);
+  transition:
+    color 0.15s var(--ease),
+    background 0.15s var(--ease);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+}
+
+.nav-link.active {
+  color: var(--text-primary);
+  background: var(--glass-strong);
 }
 
 @media (max-width: 700px) {
