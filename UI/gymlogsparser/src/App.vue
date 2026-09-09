@@ -1,8 +1,18 @@
 <script setup lang="ts">
+import Toast from "@/components/Toast.vue";
+import { storeToRefs } from "pinia";
 import { RouterLink, RouterView } from "vue-router";
+import { useWorkoutStore } from "./stores/workout";
+
+const workoutStore = useWorkoutStore();
+
+const { rawText, workout, loading, barbellWeightsArePerSide, error, success } =
+  storeToRefs(workoutStore);
 </script>
 
 <template>
+  <Toast v-if="success" variant="success" :message="success" />
+  <Toast v-if="error" variant="error" :message="error" />
   <main class="app-shell">
     <nav class="top-nav">
       <RouterLink

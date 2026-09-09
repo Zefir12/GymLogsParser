@@ -293,6 +293,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
     "Z karolem i markiem", "z Anią". These are typically Polish inflected forms
     (instrumental case) of names — normalize each to its base/nominative form,
     e.g. "karolem" -> "Karol", "markiem"/"markie" -> "Marek", "anią" -> "Ania".
+    "z Zabo/Żabą" -> "Żaba"
     Output unique normalized names as a "persons" array on the workout.
     Do not include the log's author in this list.
     Omit "persons" entirely if no one else is mentioned — do not output an

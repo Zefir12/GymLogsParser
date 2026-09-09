@@ -113,10 +113,16 @@ export const useWorkoutStore = defineStore("workout", () => {
     try {
       await saveWorkout(workout.value);
 
-      success.value = "Workout saved.";
+      success.value = "Workout saved successfully.";
+      window.setTimeout(() => {
+        success.value = null;
+      }, 3000);
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : "Could not save workout.";
+      window.setTimeout(() => {
+        error.value = null;
+      }, 4000);
     } finally {
       saving.value = false;
     }
