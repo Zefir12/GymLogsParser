@@ -28,7 +28,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.UseForwardedHeaders();
 app.UseCors("DevCors");
 app.UseAuthentication();
 app.UseAuthorization();
