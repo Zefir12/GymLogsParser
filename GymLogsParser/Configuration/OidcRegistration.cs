@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
@@ -21,7 +22,7 @@ public static class OidcRegistration
                 {
                     o.Cookie.Name = "gymlogs.session";
                     o.Cookie.HttpOnly = true;
-                    o.ExpireTimeSpan = TimeSpan.FromHours(8);
+                    o.ExpireTimeSpan = TimeSpan.FromHours(4);
                     o.SlidingExpiration = false;   // caps how stale the roles claim can get
                     o.Cookie.SameSite = SameSiteMode.Lax;
                     o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
@@ -38,7 +39,7 @@ public static class OidcRegistration
                     o.ResponseType = "code";
                     o.ResponseMode = "query";
                     o.UsePkce = true;
-                    o.SaveTokens = true;
+                    o.SaveTokens = false;
                     o.MapInboundClaims = false;
                     o.GetClaimsFromUserInfoEndpoint = false;
 
@@ -54,6 +55,13 @@ public static class OidcRegistration
                         var frontend = auth["FrontendUrl"]?.TrimEnd('/') ?? "";
                         ctx.Response.Redirect($"{frontend}/auth/error?code={Uri.EscapeDataString(err)}");
                         ctx.HandleResponse();
+                        return Task.CompletedTask;
+                    };
+                    o.Events.OnTokenValidated = ctx =>
+                    {
+                        var idToken = ctx.TokenEndpointResponse?.IdToken ?? ctx.ProtocolMessage?.IdToken;
+                        if (idToken is not null)
+                            ctx.Properties!.StoreTokens([new AuthenticationToken { Name = "id_token", Value = idToken }]);
                         return Task.CompletedTask;
                     };
                 });
