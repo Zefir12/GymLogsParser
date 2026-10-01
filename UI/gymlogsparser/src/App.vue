@@ -5,6 +5,8 @@ import { RouterLink, RouterView } from "vue-router";
 import { useWorkoutStore } from "./stores/workout";
 
 const workoutStore = useWorkoutStore();
+import { useAuthStore } from "@/stores/auth";
+const auth = useAuthStore();
 
 const { rawText, workout, loading, barbellWeightsArePerSide, error, success } =
   storeToRefs(workoutStore);
@@ -15,6 +17,16 @@ const { rawText, workout, loading, barbellWeightsArePerSide, error, success } =
   <Toast v-if="error" variant="error" :message="error" />
   <main class="app-shell">
     <nav class="top-nav">
+      <span v-if="auth.user" class="nav-link">{{ auth.user.name }}</span>
+      <button
+        v-if="auth.isAuthenticated"
+        class="nav-link"
+        @click="auth.logout()"
+      >
+        Log out
+      </button>
+      <button v-else class="nav-link" @click="auth.login()">Log in</button>
+
       <RouterLink
         to="/"
         class="nav-link"
@@ -25,6 +37,9 @@ const { rawText, workout, loading, barbellWeightsArePerSide, error, success } =
       </RouterLink>
       <RouterLink to="/progress" class="nav-link" active-class="active">
         Progress
+      </RouterLink>
+      <RouterLink to="/edit" class="nav-link" active-class="active">
+        Edit
       </RouterLink>
     </nav>
 

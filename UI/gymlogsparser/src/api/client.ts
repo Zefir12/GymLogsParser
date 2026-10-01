@@ -1,67 +1,40 @@
+import { api } from "@/api/api";
 import type { ParseWorkoutResponse, WorkoutLog } from "@/types/workout";
 import type { ExerciseProgressPoint, ExerciseSummary } from "@/types/exercise";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ?? "http://localhost:5238/api";
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-    ...options,
+export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
+  api.post<ParseWorkoutResponse>("/ai/parse-workout", {
+    text,
+    barbellWeightsArePerSide,
   });
 
-  if (!response.ok) {
-    let message = `Request failed: ${response.status}`;
+export const saveWorkout = (workout: WorkoutLog) =>
+  api.post<WorkoutLog>("/workouts", workout);
 
-    try {
-      const body = await response.json();
+export const getWorkouts = () => api.get<WorkoutSummary[]>("/workouts");
 
-      if (body?.error) {
-        message = body.error;
-      }
-    } catch {
-      // Keep default error.
-    }
+export const getWorkout = (id: string) =>
+  api.get<WorkoutLog>(`/workouts/${encodeURIComponent(id)}`);
 
-    throw new Error(message);
-  }
+export const updateWorkout = (id: string, workout: WorkoutLog) =>
+  api.put(`/workouts/${encodeURIComponent(id)}`, workout);
 
-  return response.json() as Promise<T>;
-}
+export const deleteWorkout = (id: string) =>
+  api.delete(`/workouts/${encodeURIComponent(id)}`);
 
-export async function parseWorkout(
-  text: string,
-  barbellWeightsArePerSide: boolean,
-): Promise<ParseWorkoutResponse> {
-  return request<ParseWorkoutResponse>("/ai/parse-workout", {
-    method: "POST",
-    body: JSON.stringify({
-      text,
-      barbellWeightsArePerSide,
-    }),
-  });
-}
-/**
- * Adapt this endpoint to your existing EF controller.
- */
-export async function saveWorkout(workout: WorkoutLog): Promise<WorkoutLog> {
-  return request<WorkoutLog>("/workouts", {
-    method: "POST",
-    body: JSON.stringify(workout),
-  });
-}
+export const getExercises = () => api.get<ExerciseSummary[]>("/exercises");
 
-export async function getExercises(): Promise<ExerciseSummary[]> {
-  return request<ExerciseSummary[]>("/exercises");
-}
-
-export async function getExerciseProgress(
-  exerciseId: string,
-): Promise<ExerciseProgressPoint[]> {
-  return request<ExerciseProgressPoint[]>(
+export const getExerciseProgress = (exerciseId: string) =>
+  api.get<ExerciseProgressPoint[]>(
     `/exercises/${encodeURIComponent(exerciseId)}/progress`,
   );
+
+export interface WorkoutSummary {
+  id: string;
+  date: string | null;
+  title: string | null;
+  exerciseCount: number;
+  totalSets: number;
+  hasCardio: boolean;
+  muscleGroups: string[];
 }

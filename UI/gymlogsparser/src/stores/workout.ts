@@ -16,6 +16,9 @@ function emptyWorkout(): WorkoutLog {
     title: null,
     notes: null,
     exercises: [],
+    startTime: null,
+    endTime: null,
+    persons: [],
   };
 }
 

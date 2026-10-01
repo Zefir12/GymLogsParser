@@ -17,7 +17,7 @@ builder.Services
     });
 builder.Services.AddSwaggerGen();
 builder.Services.AddCorsPolicies(builder.Configuration);
-builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddOidcAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddAppAuthorization(builder.Environment);
 
 

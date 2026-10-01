@@ -21,10 +21,10 @@ public static class OidcRegistration
                 {
                     o.Cookie.Name = "gymlogs.session";
                     o.Cookie.HttpOnly = true;
+                    o.ExpireTimeSpan = TimeSpan.FromHours(8);
+                    o.SlidingExpiration = false;   // caps how stale the roles claim can get
                     o.Cookie.SameSite = SameSiteMode.Lax;
-                    o.Cookie.SecurePolicy = env.IsDevelopment()
-                        ? CookieSecurePolicy.SameAsRequest
-                        : CookieSecurePolicy.Always;
+                    o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
                     o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
                     o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
                 })
@@ -38,7 +38,7 @@ public static class OidcRegistration
                     o.ResponseType = "code";
                     o.ResponseMode = "query";
                     o.UsePkce = true;
-                    o.SaveTokens = false;
+                    o.SaveTokens = true;
                     o.MapInboundClaims = false;
                     o.GetClaimsFromUserInfoEndpoint = false;
 
@@ -49,6 +49,13 @@ public static class OidcRegistration
 
                     o.TokenValidationParameters.NameClaimType = "name";
                     o.TokenValidationParameters.RoleClaimType = "roles";
+                    o.Events.OnRemoteFailure = ctx => {
+                        var err = ctx.Request.Query["error"].ToString();
+                        var frontend = auth["FrontendUrl"]?.TrimEnd('/') ?? "";
+                        ctx.Response.Redirect($"{frontend}/auth/error?code={Uri.EscapeDataString(err)}");
+                        ctx.HandleResponse();
+                        return Task.CompletedTask;
+                    };
                 });
 
             return services;

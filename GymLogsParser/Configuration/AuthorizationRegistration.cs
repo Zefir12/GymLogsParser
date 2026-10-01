@@ -8,13 +8,19 @@ public static class AuthorizationRegistration
     {
         public IServiceCollection AddAppAuthorization(IWebHostEnvironment environment)
         {
-            services.AddAuthorization(options =>
+            var builder = services.AddAuthorizationBuilder();
+
+            if (!environment.IsDevelopment())
             {
-                if (!environment.IsDevelopment())
-                    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                builder.SetFallbackPolicy(
+                    new AuthorizationPolicyBuilder()
                         .RequireAuthenticatedUser()
-                        .Build();
-            });
+                        .Build());
+            }
+
+            builder.AddPolicy("admin", policy =>
+                policy.RequireRole("admin"));
+
             return services;
         }
     }
