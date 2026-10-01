@@ -8,8 +8,7 @@ const workoutStore = useWorkoutStore();
 import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 
-const { rawText, workout, loading, barbellWeightsArePerSide, error, success } =
-  storeToRefs(workoutStore);
+const { error, success } = storeToRefs(workoutStore);
 </script>
 
 <template>
