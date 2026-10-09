@@ -40,7 +40,7 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
     /// <summary>
     /// Returns one data point per workout for the given exercise: max weight lifted,
     /// total volume (sum of weight * reps across working sets), and the estimated
-    /// one-rep-max for that session. Warm-up sets and sets missing weight/reps are
+    /// one-rep-max for that session, plus bodyweight and DOTS score (of the e1RM). Warm-up sets and sets missing weight/reps are
     /// excluded from all three metrics.
     /// </summary>
     [HttpGet("{exerciseId}/progress")]
@@ -71,6 +71,9 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
                     .ToList();
 
                 var workout = group.First().Workout;
+                double? bodyweight = workout.Date.HasValue
+                    ? Math.Round(BodyweightHistory.GetInterpolated(workout.Date.Value), 1)
+                    : null;
 
                 if (workingSets.Count == 0)
                 {
@@ -80,9 +83,14 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
                         Date = workout.Date,
                         MaxWeight = 0,
                         TotalVolume = 0,
-                        EstimatedOneRepMax = 0
+                        EstimatedOneRepMax = 0,
+                        Bodyweight = bodyweight,
+                        Dots = 0
                     };
                 }
+
+                var estimatedOneRepMax = workingSets
+                    .Max(s => OneRepMaxCalculator.Epley(s.Weight!.Value, s.Reps!.Value));
 
                 return new ExerciseProgressPoint
                 {
@@ -90,8 +98,12 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
                     Date = workout.Date,
                     MaxWeight = workingSets.Max(s => s.Weight!.Value),
                     TotalVolume = workingSets.Sum(s => s.Weight!.Value * s.Reps!.Value),
-                    EstimatedOneRepMax = workingSets
-                        .Max(s => OneRepMaxCalculator.Epley(s.Weight!.Value, s.Reps!.Value))
+                    EstimatedOneRepMax = estimatedOneRepMax,
+                    Bodyweight = bodyweight,
+                    // DOTS of the session's estimated 1RM at that day's bodyweight
+                    Dots = bodyweight.HasValue
+                        ? Math.Round(DotsCalculator.Calculate(estimatedOneRepMax, bodyweight.Value), 1)
+                        : null
                 };
             })
             .OrderBy(p => p.Date)
@@ -119,4 +131,10 @@ public sealed class ExerciseProgressPoint
     public decimal MaxWeight { get; set; }
     public decimal TotalVolume { get; set; }
     public decimal EstimatedOneRepMax { get; set; }
+
+    /// <summary>Bodyweight interpolated from history for the workout date (null if no date).</summary>
+    public double? Bodyweight { get; set; }
+
+    /// <summary>DOTS score of the estimated 1RM at that bodyweight (null if no date).</summary>
+    public decimal? Dots { get; set; }
 }
