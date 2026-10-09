@@ -41,6 +41,24 @@ const oneRepMaxSeries = computed(() =>
   progress.value.map((p) => ({ date: p.date, value: p.estimatedOneRepMax })),
 );
 
+/** Sessions with no date have no bodyweight, so they can't get a DOTS score. */
+const dotsSeries = computed(() =>
+  progress.value
+    .filter((p) => p.dots !== null && p.dots > 0)
+    .map((p) => ({ date: p.date, value: p.dots as number })),
+);
+
+const bodyweightSeries = computed(() =>
+  progress.value
+    .filter((p) => p.bodyweight !== null)
+    .map((p) => ({ date: p.date, value: p.bodyweight as number })),
+);
+
+const bestDots = computed(() => {
+  const values = dotsSeries.value.map((p) => p.value);
+  return values.length > 0 ? Math.max(...values) : null;
+});
+
 const sessionCount = computed(() => progress.value.length);
 
 const bestOneRepMax = computed(() => {
@@ -130,6 +148,10 @@ onMounted(loadExercises);
             {{ bestOneRepMax.toFixed(1) }}<span class="unit">kg</span>
           </span>
         </div>
+        <div class="summary-item" v-if="bestDots !== null">
+          <span class="summary-label">Best DOTS</span>
+          <span class="summary-value">{{ bestDots.toFixed(1) }}</span>
+        </div>
         <div class="summary-item" v-if="selectedExercise.muscleGroup">
           <span class="summary-label">Muscle group</span>
           <span class="summary-value">{{ selectedExercise.muscleGroup }}</span>
@@ -155,6 +177,18 @@ onMounted(loadExercises);
           unit="kg"
           color="var(--accent-strong)"
           :points="oneRepMaxSeries"
+        />
+        <ExerciseProgressChart
+          title="DOTS (estimated 1RM vs bodyweight)"
+          unit=""
+          color="var(--accent-text)"
+          :points="dotsSeries"
+        />
+        <ExerciseProgressChart
+          title="Bodyweight"
+          unit="kg"
+          color="var(--text-secondary)"
+          :points="bodyweightSeries"
         />
       </div>
     </template>

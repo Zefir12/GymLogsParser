@@ -19,4 +19,8 @@ export interface ExerciseProgressPoint {
   maxWeight: number;
   totalVolume: number;
   estimatedOneRepMax: number;
+  /** Bodyweight (kg) interpolated from history for that date, null if no date. */
+  bodyweight: number | null;
+  /** DOTS score of the session's estimated 1RM at that bodyweight, null if no date. */
+  dots: number | null;
 }
