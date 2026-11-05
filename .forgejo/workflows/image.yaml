@@ -1,0 +1,129 @@
+# Builds the two images, one matrix leg each with the same tag: the API
+# (GymLogsParser/Dockerfile, registrydedic.zefirlabs.net/gymlogsparser) and the UI
+# (UI/gymlogsparser/Dockerfile, registrydedic.zefirlabs.net/gymlogsparser-ui).
+# On a pull request it only builds, as a check, and only when the PR touches what the
+# image build depends on beyond the code. On a push to develop it also pushes to the
+# registry as `develop-<sha>` and `develop`; on a push to main as `main-<sha>` and
+# `latest` (rebuilt from main, not promoted from develop). nudge's stack picks them up
+# through API_TAG/UI_TAG (deploy/README.md).
+# Jobs get no Docker socket, so kaniko builds the image: no daemon, no privileges, and
+# it pushes straight to the registry.
+#
+# Outputs for a later deploy job (`needs: image`), set only on runs that push:
+#   tag               the immutable tag, e.g. develop-0123456789ab
+#   digest-<name>     the pushed image's digest (sha256:...), one per matrix entry;
+#                     deploy by `<image>@<digest>`, not by the moving tag.
+# Each matrix leg sets only its own `digest-<name>` key, so legs don't overwrite each
+# other; a new matrix entry needs its line under `outputs`.
+name: image
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    paths:
+      - .dockerignore
+      - '**/*.csproj'
+      - GymLogsParser/Dockerfile
+      - UI/gymlogsparser/Dockerfile
+      - UI/gymlogsparser/.dockerignore
+      - UI/gymlogsparser/nginx.conf
+      - UI/gymlogsparser/package.json
+      - UI/gymlogsparser/pnpm-lock.yaml
+      - .forgejo/workflows/image.yaml
+
+# Pull requests cancel their older builds; pushes for a branch queue up, so `develop`
+# (and `main`) end on the newest commit.
+concurrency:
+  group: image-${{ forgejo.ref }}
+  cancel-in-progress: ${{ forgejo.event_name == 'pull_request' }}
+
+jobs:
+  image:
+    name: image (${{ matrix.name }})
+    runs-on: docker
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Context is the repo root: the Dockerfile copies the whole solution. The root
+          # .dockerignore applies.
+          - name: gymlogsparser
+            image: registrydedic.zefirlabs.net/gymlogsparser
+            context: .
+            dockerfile: GymLogsParser/Dockerfile
+          # Context is the UI folder, as in `make publish-ui` (no build args: the
+          # Dockerfile's VITE_API_URL=/api default is what the deploy needs). kaniko
+          # reads .dockerignore from the context root, so UI/gymlogsparser/.dockerignore
+          # applies here, not the root one.
+          - name: gymlogsparser-ui
+            image: registrydedic.zefirlabs.net/gymlogsparser-ui
+            context: UI/gymlogsparser
+            dockerfile: UI/gymlogsparser/Dockerfile
+    container:
+      image: node:24 # checkout needs node; the build itself runs in kaniko's container
+    env:
+      IMAGE: ${{ matrix.image }}
+      CONTEXT: ${{ matrix.context }}
+      DOCKERFILE: ${{ matrix.dockerfile }}
+      PUSH: ${{ forgejo.event_name != 'pull_request' }}
+    outputs:
+      tag: ${{ steps.digest.outputs.tag }}
+      digest-gymlogsparser: ${{ steps.digest.outputs.digest-gymlogsparser }}
+      digest-gymlogsparser-ui: ${{ steps.digest.outputs.digest-gymlogsparser-ui }}
+
+    steps:
+      - name: Checkout
+        uses: https://data.forgejo.org/actions/checkout@v6
+
+      # TAG is pushed on every push; MOVING is `develop` from develop, `latest` from main.
+      - name: Tag
+        run: |
+          branch=$(echo "${{ forgejo.ref_name }}" | tr -c 'A-Za-z0-9_.\n-' '-')
+          echo "TAG=$branch-$(git rev-parse --short=12 HEAD)" >> "$FORGEJO_ENV"
+          if [ "$branch" = develop ]; then echo "MOVING=develop" >> "$FORGEJO_ENV"; fi
+          if [ "$branch" = main ]; then echo "MOVING=latest" >> "$FORGEJO_ENV"; fi
+
+      # Runs in its own container with the workspace mounted. Credentials go into kaniko's
+      # config only on the runs that push; pull requests build without pushing. The
+      # digest file lands in the workspace for the next step.
+      - name: Build and push
+        uses: docker://gcr.io/kaniko-project/executor:v1.24.0-debug
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        with:
+          entrypoint: /busybox/sh
+          args: |
+            -euc '
+            rm -f "$PWD/.image-digest";
+            if [ "$PUSH" = true ]; then
+              if [ -z "$REGISTRY_USER" ] || [ -z "$REGISTRY_PASSWORD" ]; then
+                echo "REGISTRY_USER/REGISTRY_PASSWORD secrets are not set" >&2; exit 1;
+              fi;
+              auth=$(printf "%s:%s" "$REGISTRY_USER" "$REGISTRY_PASSWORD" | base64 | tr -d "\n");
+              printf "{\"auths\":{\"%s\":{\"auth\":\"%s\"}}}" "${IMAGE%%/*}" "$auth" > /kaniko/.docker/config.json;
+              set -- --destination "$IMAGE:$TAG" --digest-file "$PWD/.image-digest";
+              if [ -n "${MOVING:-}" ]; then set -- "$@" --destination "$IMAGE:$MOVING"; fi;
+            else
+              set -- --no-push;
+            fi;
+            /kaniko/executor --context "dir://$PWD/$CONTEXT" --dockerfile "$PWD/$DOCKERFILE" \
+              --single-snapshot "$@"
+            '
+
+      - name: Digest
+        id: digest
+        if: env.PUSH == 'true'
+        env:
+          NAME: ${{ matrix.name }}
+        run: |
+          digest=$(cat .image-digest)
+          case "$digest" in
+            sha256:*) ;;
+            *) echo "unexpected digest: '$digest'" >&2; exit 1 ;;
+          esac
+          echo "tag=$TAG" >> "$FORGEJO_OUTPUT"
+          echo "digest-$NAME=$digest" >> "$FORGEJO_OUTPUT"
+          echo "pushed $IMAGE:$TAG@$digest"
