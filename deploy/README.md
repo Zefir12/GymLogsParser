@@ -1,0 +1,103 @@
+# Deploying on nudge
+
+The stack is `deploy/compose.yaml`, deployed by nudge as a stack from git. It runs three
+containers:
+
+| Service    | Image                                                 | Role |
+|------------|-------------------------------------------------------|------|
+| `ui`       | `registrydedic.zefirlabs.net/gymlogsparser-ui:${UI_TAG}` | nginx: serves the SPA, proxies the API. The only published port. |
+| `api`      | `registrydedic.zefirlabs.net/gymlogsparser:${API_TAG}`   | ASP.NET API, applies EF migrations on startup. |
+| `postgres` | `postgres:17-alpine`                                  | Database, data in the `pgdata` volume. |
+
+## Routing
+
+Everything is served from one origin, `https://gymlogs.zefirlabs.net`:
+
+- The host's reverse proxy (TLS) forwards to the `ui` port (`127.0.0.1:8085` by default)
+  and must send `X-Forwarded-Proto: https` and the original `Host`.
+- nginx in `ui` proxies `/api/*`, `/signin-oidc` and `/signout-callback-oidc` to `api:8080`
+  and passes on `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`. The API
+  already trusts forwarded headers, so it builds `https://gymlogs.zefirlabs.net/...` URLs.
+- Every other path is the SPA (including its own `/auth/error` and `/signed-out` routes).
+- The UI image is built with `VITE_API_URL=/api`, so the browser never needs another origin
+  and the session cookie is first-party.
+
+## 1. Build and push the images
+
+From the repo root, logged in to `registrydedic.zefirlabs.net`:
+
+```sh
+make publish-all              # API and UI, tag latest
+make publish-all TAG=1.2.0    # or a fixed tag; then set API_TAG/UI_TAG to 1.2.0
+```
+
+`make publish` (API) and `make publish-ui` (UI) also work on their own.
+
+## 2. authestra client
+
+On the client used by `Auth__ClientId`:
+
+- Redirect URI: `https://gymlogs.zefirlabs.net/signin-oidc`
+- Post-logout redirect: the app sends `https://gymlogs.zefirlabs.net/signout-callback-oidc`.
+  authestra accepts a post-logout URI on the same origin as a registered redirect URI,
+  so the redirect URI above covers it.
+- Scopes: `openid profile email`; the `roles` claim decides who is `admin`.
+
+## 3. nudge setup
+
+1. **Registry** (Registries): address `registrydedic.zefirlabs.net` with a user that can
+   pull both images. nudge passes it to compose because the compose file names that host.
+2. **Stack from git** (Stacks, new stack, from git):
+   - name: `gym-logs-parser`
+   - repo URL: `https://git.zefirlabs.net/zefir/gym-logs-parser.git`
+   - ref: `main` (or the branch you deploy from)
+   - compose path: `deploy/compose.yaml`
+   - env path: leave empty (don't use `deploy/.env.example`: it would overwrite your values)
+   - auth: `token`, with a Forgejo access token that can read this private repo
+     (`read:repository`)
+3. **Stack env**: set the variables below. Secrets live only here, never in git.
+
+## 4. Variables
+
+`deploy/.env.example` has them all with examples. Write a literal `$` as `$$`.
+
+| Variable | Required | What it is |
+|----------|----------|------------|
+| `POSTGRES_PASSWORD` | yes | Password of the bundled postgres. Avoid `;`. |
+| `Auth__Authority` | yes | authestra issuer URL (exactly its ISSUER). |
+| `Auth__ClientId` | yes | authestra client ID. |
+| `Auth__ClientSecret` | yes, secret | authestra client secret. |
+| `Auth__FrontendUrl` | yes | `https://gymlogs.zefirlabs.net` |
+| `DeepSeek__ApiKey` | yes, secret | DeepSeek API key. |
+| `Frontend__Cors` | recommended | `https://gymlogs.zefirlabs.net`, so the image's dev origins don't apply. |
+| `Frontend__Url` | no | Public URL of the frontend. |
+| `API_TAG`, `UI_TAG` | no | Image tags, default `latest`. |
+| `UI_BIND`, `UI_PORT` | no | Where the UI port is published, default `127.0.0.1:8085`. |
+| `POSTGRES_DB`, `POSTGRES_USER` | no | Default `gymlogs`. |
+| `ConnectionStrings__GymLogs` | no | Set to use an external database instead of the bundled one. |
+| `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
+| `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
+
+The whole stack env is also handed to the `api` container (`env_file`), so any other
+`Section__Key` override works without changing the compose file.
+
+### External database
+
+Set `ConnectionStrings__GymLogs`. The bundled `postgres` still starts (it is small and
+idle); `POSTGRES_PASSWORD` must still be set to something.
+
+## 5. First deploy
+
+1. Push both images (step 1) and set up authestra, the registry and the stack (steps 2-3).
+2. Point the reverse proxy for `gymlogs.zefirlabs.net` at `UI_BIND:UI_PORT`.
+3. Pull/deploy the stack in nudge. postgres starts, then `api` creates the schema
+   (watch its logs for the migration), then `ui`.
+4. Open https://gymlogs.zefirlabs.net, log in, and parse a workout.
+
+Updates: push new images and deploy again (nudge deploys with `--pull always`).
+
+## Known limits
+
+- ASP.NET data-protection keys live inside the `api` container, so a redeploy signs
+  everyone out (sessions last 4 hours anyway).
+- `api` has no healthcheck (no curl/wget in the aspnet image).
