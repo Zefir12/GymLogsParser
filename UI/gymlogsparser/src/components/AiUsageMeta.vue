@@ -53,7 +53,7 @@ const cacheInfo = computed(() => {
   border-radius: 50%;
 
   background: var(--accent);
-  box-shadow: 0 0 6px rgba(255, 122, 48, 0.6);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.6);
 }
 
 .separator {

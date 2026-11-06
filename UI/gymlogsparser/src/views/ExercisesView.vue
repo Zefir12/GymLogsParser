@@ -318,7 +318,7 @@ onMounted(() => catalog.reload());
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--card-gap-lg);
 }
 
 .page-header h1 {
@@ -336,8 +336,8 @@ onMounted(() => catalog.reload());
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: var(--card-pad);
   background: var(--glass-soft);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);

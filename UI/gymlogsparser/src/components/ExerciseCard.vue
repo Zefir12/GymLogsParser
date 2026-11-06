@@ -179,8 +179,8 @@ function selectExercise(exerciseId: string) {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 11px;
-  background: #64410ab5;
+  padding: var(--card-pad-xs) 10px;
+  background: var(--exercise-head-bg);
   border-bottom: 1px solid var(--glass-border);
 }
 
@@ -244,7 +244,7 @@ function selectExercise(exerciseId: string) {
   padding: 4px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xs);
-  background: #16181c;
+  background: var(--surface-solid);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -259,7 +259,7 @@ function selectExercise(exerciseId: string) {
   border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
-  color: #f2f3f5;
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
 }

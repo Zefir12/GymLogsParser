@@ -189,10 +189,10 @@ const emptyText = computed(() => {
   flex-direction: column;
   gap: 14px;
   min-width: 0;
-  padding: 20px;
+  padding: var(--card-pad);
 
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card-bg);
 }
 
@@ -342,7 +342,7 @@ svg {
   padding: 16px;
 
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   color: var(--text-secondary);
   text-align: center;
 }

@@ -1,4 +1,6 @@
 import { createApp } from "vue";
+import "./styles/brand.css";
+import "./styles/tokens.css";
 import "./style.css";
 import "./styles/theme.css";
 import App from "./App.vue";

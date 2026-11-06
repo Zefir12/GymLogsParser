@@ -226,7 +226,7 @@ onMounted(loadExercises);
 
 .summary-row {
   display: flex;
-  gap: 14px;
+  gap: var(--card-gap);
   flex-wrap: wrap;
 
   margin-bottom: 20px;
@@ -237,7 +237,7 @@ onMounted(loadExercises);
   flex-direction: column;
   gap: 4px;
 
-  padding: 12px 18px;
+  padding: 10px 14px;
 
   background: var(--glass-soft);
   border: 1px solid var(--glass-border);
@@ -264,7 +264,7 @@ onMounted(loadExercises);
 .charts-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--card-gap);
 }
 
 .status-text {

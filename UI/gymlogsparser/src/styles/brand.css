@@ -1,0 +1,24 @@
+/* ============================================================
+   LOG ASCENT BRAND PALETTE
+   Copied from the brand pack (colors.css / colors.json).
+   These are primitives only: components should use the
+   semantic tokens in tokens.css, which are built from these.
+   ============================================================ */
+
+:root {
+  --brand-ground: #141416;
+  --brand-accent: #ff6a1a;
+  --brand-light: #e8e6e2;
+
+  /* log rows on dark, bottom to top */
+  --brand-row-1: #2e3036;
+  --brand-row-2: #3a3c43;
+  --brand-row-3: #4a4d55;
+  --brand-row-4: #5e626b;
+
+  /* log rows on light, bottom to top */
+  --brand-row-light-1: #c9c6c0;
+  --brand-row-light-2: #b3afa8;
+  --brand-row-light-3: #9a958d;
+  --brand-row-light-4: #7e7971;
+}

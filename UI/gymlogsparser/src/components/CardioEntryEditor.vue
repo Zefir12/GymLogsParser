@@ -136,7 +136,7 @@ function setDurationFromMinutes(cardioIndex: number, event: Event) {
 }
 
 .cardio-entry {
-  padding: 10px;
+  padding: var(--card-pad-xs);
 
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);

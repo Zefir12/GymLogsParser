@@ -52,7 +52,7 @@ async function parseWorkout() {
     minmax(350px, 0.75fr)
     minmax(650px, 1.25fr);
 
-  gap: 18px;
+  gap: var(--card-gap-lg);
 
   align-items: start;
 }
