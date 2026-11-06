@@ -24,7 +24,17 @@ Everything is served from one origin, `https://gymlogs.zefirlabs.net`:
 
 ## 1. Build and push the images
 
-From the repo root, logged in to `registrydedic.zefirlabs.net`:
+Forgejo Actions builds and pushes both images (see [CI](#ci) below):
+
+| Push to   | Tags pushed (both images)  | nudge `API_TAG` / `UI_TAG` |
+|-----------|----------------------------|----------------------------|
+| `main`    | `latest`, `main-<sha>`     | `latest`                   |
+| `develop` | `develop`, `develop-<sha>` | `develop`                  |
+
+`<sha>` is the commit's first 12 hex characters; set `API_TAG`/`UI_TAG` to such a tag to
+pin a build.
+
+By hand instead, from the repo root, logged in to `registrydedic.zefirlabs.net`:
 
 ```sh
 make publish-all              # API and UI, tag latest
@@ -95,6 +105,29 @@ idle); `POSTGRES_PASSWORD` must still be set to something.
 4. Open https://gymlogs.zefirlabs.net, log in, and parse a workout.
 
 Updates: push new images and deploy again (nudge deploys with `--pull always`).
+
+## CI
+
+`.forgejo/workflows/image.yaml` builds both images with kaniko (the runners have no
+Docker socket):
+
+- Push to `main` or `develop`: builds and pushes, tags as in step 1.
+- Pull request touching a Dockerfile, a `.dockerignore`, a `.csproj`, the UI's
+  `package.json`, `pnpm-lock.yaml` or `nginx.conf`, or the workflow: builds only, never
+  pushes.
+- The `image` job exposes `tag` and `digest-gymlogsparser` / `digest-gymlogsparser-ui`
+  as outputs, for a nudge deploy job to be added later.
+
+One-time setup by zefir (repo Settings):
+
+1. **Enable Actions** for the repo (Settings: turn on the Actions unit).
+2. **Secrets** (Settings, Actions, Secrets): `REGISTRY_USER` and `REGISTRY_PASSWORD`, a
+   user that can push to `registrydedic.zefirlabs.net/gymlogsparser` and
+   `registrydedic.zefirlabs.net/gymlogsparser-ui`. Without them, pushes to `main` and
+   `develop` fail with "REGISTRY_USER/REGISTRY_PASSWORD secrets are not set"; pull
+   request builds don't need them.
+3. In nudge, set the stack's `API_TAG` and `UI_TAG` to `develop` or `latest` (the
+   compose default is `latest`) and deploy; nudge pulls with `--pull always`.
 
 ## Known limits
 
