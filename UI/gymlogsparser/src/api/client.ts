@@ -1,7 +1,7 @@
 import { api } from "@/api/api";
 import type { ParseWorkoutResponse, WorkoutLog } from "@/types/workout";
 import type { ExerciseProgressPoint, ExerciseSummary } from "@/types/exercise";
-import type { DashboardData } from "@/types/dashboard";
+import type { DashboardData, DashboardRange } from "@/types/dashboard";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
   api.post<ParseWorkoutResponse>("/ai/parse-workout", {
@@ -30,9 +30,14 @@ export const getExerciseProgress = (exerciseId: string) =>
     `/exercises/${encodeURIComponent(exerciseId)}/progress`,
   );
 
-/** `to` is the client's local today (yyyy-MM-dd), so "this week" matches the user's calendar. */
-export const getDashboard = (to: string) =>
-  api.get<DashboardData>(`/dashboard?to=${encodeURIComponent(to)}`);
+/**
+ * `to` is the client's local today (yyyy-MM-dd), so "this week" matches the user's
+ * calendar. The response always covers at least 53 weeks, more if `range` needs it.
+ */
+export const getDashboard = (to: string, range: DashboardRange) =>
+  api.get<DashboardData>(
+    `/dashboard?to=${encodeURIComponent(to)}&range=${encodeURIComponent(range)}`,
+  );
 
 export interface WorkoutSummary {
   id: string;

@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { defineStore } from "pinia";
 
 import { getDashboard } from "@/api/client";
@@ -18,6 +18,7 @@ import {
   groupOf,
   sortGroups,
   todayIso,
+  weekStart,
 } from "@/utils/dashboard";
 
 export interface ExerciseSession {
@@ -49,16 +50,23 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const exerciseId = ref<string | null>(null);
   const metric = ref<DashboardMetric>("e1rm");
 
+  /** Bumped per request so a slow, older response never overwrites a newer one. */
+  let requestId = 0;
+
   async function load() {
+    const id = ++requestId;
     loading.value = true;
     error.value = null;
     try {
-      data.value = await getDashboard(todayIso());
+      const result = await getDashboard(todayIso(), range.value);
+      if (id === requestId) data.value = result;
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : "Could not load the dashboard.";
+      if (id === requestId) {
+        error.value =
+          err instanceof Error ? err.message : "Could not load the dashboard.";
+      }
     } finally {
-      loading.value = false;
+      if (id === requestId) loading.value = false;
     }
   }
 
@@ -77,11 +85,19 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const fromDay = computed(() => (data.value ? dayNumber(data.value.from) : 0));
   const toDay = computed(() => (data.value ? dayNumber(data.value.to) : 0));
   /** Monday of the week that contains `to`. */
-  const currentWeekStart = computed(() => fromDay.value + 52 * 7);
+  const currentWeekStart = computed(() => weekStart(toDay.value));
+  /** Monday of the heatmap's first week: 53 weeks ending with the current one. */
+  const heatmapStart = computed(() => currentWeekStart.value - 52 * 7);
   /** First day of the selected range. */
   const rangeStart = computed(
     () => toDay.value - RANGE_DAYS[range.value] + 1,
   );
+
+  // The response covers at least a year; a longer range needs older days, so fetch
+  // them only when the loaded window doesn't reach back far enough.
+  watch(range, () => {
+    if (data.value && rangeStart.value < fromDay.value) load();
+  });
 
   const exerciseById = computed(
     () =>
@@ -291,6 +307,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     fromDay,
     toDay,
     currentWeekStart,
+    heatmapStart,
     rangeStart,
     dayByNumber,
     groups,

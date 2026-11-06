@@ -15,7 +15,7 @@ const weeks = computed(() => {
   const max = Math.max(0, ...values.values()) || 1;
 
   return Array.from({ length: 53 }, (_, w) => {
-    const start = store.fromDay + w * 7;
+    const start = store.heatmapStart + w * 7;
     const days = Array.from({ length: 7 }, (_, i) => {
       const day = start + i;
       if (day > store.toDay) return { day, level: -1, tip: "" };

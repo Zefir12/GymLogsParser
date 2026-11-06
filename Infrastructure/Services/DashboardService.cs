@@ -8,17 +8,20 @@ namespace Infrastructure.Services;
 public sealed class DashboardService(AppDbContext db) : IDashboardService
 {
     /// <summary>53 calendar weeks: the heatmap's width, and enough for the 1-year range.</summary>
-    private const int Weeks = 53;
+    private const int MinWeeks = 53;
 
     /// <summary>
     /// Exercises in this muscle group are warm-up activities, not training volume.
     /// </summary>
     private const string WarmupMuscleGroup = "Warm-up";
 
-    public async Task<DashboardData> GetAsync(DateOnly to, CancellationToken cancellationToken = default)
+    public async Task<DashboardData> GetAsync(DateOnly to, int days, CancellationToken cancellationToken = default)
     {
+        // Enough whole weeks that the first one starts on or before to - days + 1,
+        // whatever weekday `to` is.
+        var weeks = Math.Max(MinWeeks, (days - 1 + 6) / 7 + 1);
         var mondayOffset = ((int)to.DayOfWeek + 6) % 7;
-        var from = to.AddDays(-mondayOffset - (Weeks - 1) * 7);
+        var from = to.AddDays(-mondayOffset - (weeks - 1) * 7);
 
         // Working strength sets. Sets before the window are only needed as the baseline
         // for PR detection, so only those with weight and reps are loaded.
