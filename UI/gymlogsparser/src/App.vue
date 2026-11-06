@@ -14,34 +14,58 @@ const { error, success } = storeToRefs(workoutStore);
 <template>
   <Toast v-if="success" variant="success" :message="success" />
   <Toast v-if="error" variant="error" :message="error" />
+  <header class="site-header">
+    <div class="site-header-inner">
+      <RouterLink to="/" class="site-brand">
+        <svg
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--accent)"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />
+        </svg>
+        GymLogs
+      </RouterLink>
+
+      <nav aria-label="Main" class="main-nav">
+        <RouterLink to="/" class="nav-link" exact-active-class="active">
+          Dashboard
+        </RouterLink>
+        <RouterLink to="/edit" class="nav-link" active-class="active">
+          Workouts
+        </RouterLink>
+        <RouterLink to="/progress" class="nav-link" active-class="active">
+          Progress
+        </RouterLink>
+      </nav>
+
+      <div class="account">
+        <span v-if="auth.user" class="user">{{ auth.user.name }}</span>
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          class="nav-link"
+          @click="auth.logout()"
+        >
+          Log out
+        </button>
+        <button v-else type="button" class="nav-link" @click="auth.login()">
+          Log in
+        </button>
+      </div>
+
+      <RouterLink to="/log" class="log-button" active-class="active">
+        + Log workout
+      </RouterLink>
+    </div>
+  </header>
+
   <main class="app-shell">
-    <nav class="top-nav">
-      <span v-if="auth.user" class="nav-link">{{ auth.user.name }}</span>
-      <button
-        v-if="auth.isAuthenticated"
-        class="nav-link"
-        @click="auth.logout()"
-      >
-        Log out
-      </button>
-      <button v-else class="nav-link" @click="auth.login()">Log in</button>
-
-      <RouterLink
-        to="/"
-        class="nav-link"
-        active-class="active"
-        exact-active-class="active"
-      >
-        Log workout
-      </RouterLink>
-      <RouterLink to="/progress" class="nav-link" active-class="active">
-        Progress
-      </RouterLink>
-      <RouterLink to="/edit" class="nav-link" active-class="active">
-        Edit
-      </RouterLink>
-    </nav>
-
     <RouterView />
   </main>
 </template>
@@ -54,29 +78,64 @@ const { error, success } = storeToRefs(workoutStore);
   color: var(--text-secondary);
 }
 
-.top-nav {
-  max-width: 1500px;
-  margin: 0 auto 18px;
+.site-header {
+  border-bottom: 1px solid var(--card-border);
+  background: var(--header-bg);
+}
+
+.site-header-inner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 14px 24px;
 
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  flex: 1 1 auto;
+}
 
-  padding: 4px;
-  width: fit-content;
+.account {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
-  background: var(--glass-soft);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
+.user {
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
 }
 
 .nav-link {
-  padding: 7px 16px;
+  padding: 8px 12px;
+
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
 
   font-size: 0.9rem;
-  color: var(--text-tertiary);
   text-decoration: none;
 
-  border-radius: var(--radius-lg);
   transition:
     color 0.15s var(--ease),
     background 0.15s var(--ease);
@@ -88,12 +147,43 @@ const { error, success } = storeToRefs(workoutStore);
 
 .nav-link.active {
   color: var(--text-primary);
-  background: var(--glass-strong);
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 500;
+}
+
+.log-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+
+  border-radius: 10px;
+  background: var(--accent);
+  color: #1a0d04;
+
+  font-weight: 600;
+  text-decoration: none;
+
+  transition: background 0.15s var(--ease);
+}
+
+.log-button:hover,
+.log-button.active {
+  background: var(--accent-strong);
 }
 
 @media (max-width: 700px) {
   .app-shell {
     padding: 10px;
+  }
+
+  .site-header-inner {
+    padding: 12px 16px;
+  }
+
+  .main-nav {
+    order: 3;
+    flex-basis: 100%;
   }
 }
 </style>
