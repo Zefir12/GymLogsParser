@@ -9,10 +9,12 @@ import SegmentedControl from "@/components/dashboard/SegmentedControl.vue";
 import TrainingHeatmap from "@/components/dashboard/TrainingHeatmap.vue";
 import WeeklySetsBars from "@/components/dashboard/WeeklySetsBars.vue";
 import { useDashboardStore } from "@/stores/dashboard";
+import { useMuscleTargetsStore } from "@/stores/muscleTargets";
 import type { DashboardRange } from "@/types/dashboard";
 import { RANGE_LABEL } from "@/utils/dashboard";
 
 const store = useDashboardStore();
+const targets = useMuscleTargetsStore();
 
 const ranges: { value: DashboardRange; label: string }[] = [
   { value: "3M", label: "3M" },
@@ -34,7 +36,11 @@ const summaryLine = computed(() => {
 });
 
 // Refetch on every visit so a workout logged on /log shows up straight away.
-onMounted(store.load);
+// Targets load once, in parallel; until then tiles and bars show no status.
+onMounted(() => {
+  store.load();
+  targets.ensureLoaded();
+});
 </script>
 
 <template>

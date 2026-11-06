@@ -1,8 +1,7 @@
 import type { DashboardExercise, DashboardRange } from "@/types/dashboard";
-
-/** Weekly working-set target band per muscle group. */
-export const TARGET_MIN = 10;
-export const TARGET_MAX = 20;
+import type { ExerciseDefinition, MuscleShare } from "@/types/exercise";
+import type { MuscleTarget } from "@/types/muscleTargets";
+import { MUSCLE_GROUPS, isMuscle } from "@/utils/muscleGroups";
 
 export const RANGE_DAYS: Record<DashboardRange, number> = {
   "3M": 91,
@@ -36,22 +35,8 @@ export const MAIN_LIFT_IDS = [
   "romanian-deadlift",
 ];
 
-/** Tile/bar order for the usual groups; anything else follows alphabetically, Cardio last. */
-const GROUP_ORDER = [
-  "Chest",
-  "Back",
-  "Shoulders",
-  "Legs",
-  "Quadriceps",
-  "Hamstrings",
-  "Glutes",
-  "Calves",
-  "Biceps",
-  "Triceps",
-  "Abs",
-  "Core",
-  "Full Body",
-];
+/** Tile/bar order follows the muscle-group list; anything else follows alphabetically, Cardio last. */
+const GROUP_ORDER: readonly string[] = MUSCLE_GROUPS.filter((g) => g !== CARDIO);
 
 export function sortGroups(groups: Iterable<string>): string[] {
   const rank = (g: string) => {
@@ -70,12 +55,49 @@ export function groupOf(exercise: DashboardExercise | undefined): string {
   return exercise.muscleGroup || "Other";
 }
 
+/**
+ * The groups one set of `exercise` counts towards: its logged group at share 1, then
+ * the secondary groups of its catalog entry (e.g. bench press: Chest 1, Triceps 0.5,
+ * Front Delts 0.5). Cardio, and exercises not in the catalog, only count their own group.
+ */
+export function muscleShares(
+  exercise: DashboardExercise | undefined,
+  definition: ExerciseDefinition | undefined,
+): MuscleShare[] {
+  const primary = groupOf(exercise);
+  if (primary === CARDIO || definition?.category !== "Strength") {
+    return [{ muscleGroup: primary, share: 1 }];
+  }
+  const secondary = (definition.muscles ?? []).filter(
+    (m) => m.muscleGroup !== primary && isMuscle(m.muscleGroup) && m.share > 0,
+  );
+  return [{ muscleGroup: primary, share: 1 }, ...secondary];
+}
+
+/** Rounds away float noise from summing fractional sets (0.3 + 0.3 + 0.3). */
+export function roundSets(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 export type TargetStatus = "Below target" | "On target" | "Above target";
 
-export function targetStatus(setsPerWeek: number): TargetStatus {
-  if (setsPerWeek < TARGET_MIN) return "Below target";
-  if (setsPerWeek > TARGET_MAX) return "Above target";
+/**
+ * Where a group's weekly sets (share-weighted) sit against its target range. Compared
+ * at one decimal, as shown, so "10.0" never reads as below a 10–20 range.
+ */
+export function targetStatus(
+  setsPerWeek: number,
+  target: Pick<MuscleTarget, "minSets" | "maxSets">,
+): TargetStatus {
+  const value = Math.round(setsPerWeek * 10) / 10;
+  if (value < target.minSets) return "Below target";
+  if (value > target.maxSets) return "Above target";
   return "On target";
+}
+
+/** "10–20" */
+export function formatRange(target: Pick<MuscleTarget, "minSets" | "maxSets">) {
+  return `${target.minSets}–${target.maxSets}`;
 }
 
 // --- dates: whole days since the epoch, in UTC so DST never shifts a day ---

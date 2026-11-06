@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Set> WorkoutSets => Set<Set>();
     public DbSet<Cardio> CardioEntries => Set<Cardio>();
     public DbSet<ExerciseDefinitionEntity> ExerciseDefinitions => Set<ExerciseDefinitionEntity>();
+    public DbSet<MuscleTargetEntity> MuscleTargets => Set<MuscleTargetEntity>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,6 +79,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.Category).HasConversion<string>().HasMaxLength(50);
             entity.Property(x => x.MuscleGroup).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Aliases).HasColumnType("text[]");
+            entity.HasMany(x => x.Muscles).WithOne().HasForeignKey(x => x.ExerciseDefinitionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExerciseDefinitionMuscleEntity>(entity =>
+        {
+            entity.ToTable("exercise_definition_muscles");
+            entity.HasKey(x => new { x.ExerciseDefinitionId, x.MuscleGroup });
+            entity.Property(x => x.ExerciseDefinitionId).HasMaxLength(100);
+            entity.Property(x => x.MuscleGroup).HasMaxLength(100);
+            entity.Property(x => x.Share).HasPrecision(3, 2);
+        });
+
+        modelBuilder.Entity<MuscleTargetEntity>(entity =>
+        {
+            entity.ToTable("muscle_targets");
+            entity.HasKey(x => x.MuscleGroup);
+            entity.Property(x => x.MuscleGroup).HasMaxLength(100);
         });
     }
 }

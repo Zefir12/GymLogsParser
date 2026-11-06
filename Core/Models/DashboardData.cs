@@ -50,6 +50,12 @@ public sealed class DashboardDayEntry
 {
     public string ExerciseId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The workout(s) this exercise was logged in that day, so the client can open and
+    /// edit them. Usually one; several when the exercise was in more than one workout.
+    /// </summary>
+    public List<Guid> WorkoutIds { get; set; } = [];
+
     /// <summary>Working sets (strength) or cardio entries.</summary>
     public int Sets { get; set; }
 
