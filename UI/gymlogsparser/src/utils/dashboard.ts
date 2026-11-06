@@ -1,4 +1,5 @@
 import type { DashboardExercise, DashboardRange } from "@/types/dashboard";
+import { MUSCLE_GROUPS } from "@/utils/muscleGroups";
 
 /** Weekly working-set target band per muscle group. */
 export const TARGET_MIN = 10;
@@ -36,22 +37,8 @@ export const MAIN_LIFT_IDS = [
   "romanian-deadlift",
 ];
 
-/** Tile/bar order for the usual groups; anything else follows alphabetically, Cardio last. */
-const GROUP_ORDER = [
-  "Chest",
-  "Back",
-  "Shoulders",
-  "Legs",
-  "Quadriceps",
-  "Hamstrings",
-  "Glutes",
-  "Calves",
-  "Biceps",
-  "Triceps",
-  "Abs",
-  "Core",
-  "Full Body",
-];
+/** Tile/bar order follows the muscle-group list; anything else follows alphabetically, Cardio last. */
+const GROUP_ORDER: readonly string[] = MUSCLE_GROUPS.filter((g) => g !== CARDIO);
 
 export function sortGroups(groups: Iterable<string>): string[] {
   const rank = (g: string) => {

@@ -77,7 +77,8 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
         Id = (request.Id ?? string.Empty).Trim().ToLowerInvariant(),
         Name = CollapseWhitespace(request.Name),
         Category = request.Category,
-        MuscleGroup = CollapseWhitespace(request.MuscleGroup),
+        // Canonical spelling when it is a known group; otherwise kept as typed so Validate can reject it.
+        MuscleGroup = MuscleGroups.Canonical(CollapseWhitespace(request.MuscleGroup)) ?? CollapseWhitespace(request.MuscleGroup),
         Barbell = request.Barbell,
         Aliases = (request.Aliases ?? [])
             .Select(CollapseWhitespace)
@@ -91,7 +92,7 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
         if (definition.Name.Length == 0) return "Name is required.";
         if (definition.Name.Length > 200) return "Name must be at most 200 characters.";
         if (definition.MuscleGroup.Length == 0) return "Muscle group is required.";
-        if (definition.MuscleGroup.Length > 100) return "Muscle group must be at most 100 characters.";
+        if (!MuscleGroups.All.Contains(definition.MuscleGroup)) return $"Muscle group must be one of: {string.Join(", ", MuscleGroups.All)}.";
         if (!Enum.IsDefined(definition.Category)) return "Category must be Strength or Cardio.";
 
         if (definition.Id.Length is 0 or > 100 || !IdPattern().IsMatch(definition.Id))

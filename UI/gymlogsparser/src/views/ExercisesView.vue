@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 
 import { useExerciseCatalogStore } from "@/stores/exercises";
 import type { ExerciseCategory, ExerciseDefinition } from "@/types/exercise";
+import { muscleGroupOptions } from "@/utils/muscleGroups";
 
 const catalog = useExerciseCatalogStore();
 
@@ -30,11 +31,7 @@ function emptyForm(): ExerciseDefinition {
 
 const categories: ExerciseCategory[] = ["Strength", "Cardio"];
 
-const muscleGroups = computed(() =>
-  [...new Set(catalog.definitions.map((d) => d.muscleGroup))].sort((a, b) =>
-    a.localeCompare(b),
-  ),
-);
+const muscleGroups = computed(() => muscleGroupOptions(form.value.muscleGroup));
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -189,17 +186,10 @@ onMounted(() => catalog.reload());
 
         <label class="field">
           <span>Muscle group</span>
-          <input
-            v-model="form.muscleGroup"
-            type="text"
-            maxlength="100"
-            list="muscle-groups"
-            placeholder="Legs"
-            required
-          />
-          <datalist id="muscle-groups">
-            <option v-for="g in muscleGroups" :key="g" :value="g" />
-          </datalist>
+          <select v-model="form.muscleGroup" required>
+            <option value="" disabled>Choose…</option>
+            <option v-for="g in muscleGroups" :key="g" :value="g">{{ g }}</option>
+          </select>
         </label>
       </div>
 

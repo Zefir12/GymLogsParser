@@ -13,7 +13,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
     /// <summary>
     /// Exercises in this muscle group are warm-up activities, not training volume.
     /// </summary>
-    private const string WarmupMuscleGroup = "Warm-up";
+    private const string WarmupMuscleGroup = MuscleGroups.WarmUp;
 
     public async Task<DashboardData> GetAsync(DateOnly to, int days, CancellationToken cancellationToken = default)
     {
