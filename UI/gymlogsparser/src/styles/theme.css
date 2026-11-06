@@ -1,15 +1,16 @@
 /*
-  Shared design tokens for the profile + ranking components.
-  Import this once, e.g. in main.ts:  import "@/styles/theme.css";
+  Shared aliases for the workouts views. Imported once from main.ts,
+  after tokens.css: colours and radii come from tokens.css (built on
+  the brand palette in brand.css), so there is one source for each.
 */
 
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
 
 :root {
   /* surfaces */
-  --bg: #0b0b0c;
-  --surface: rgba(24, 24, 27, 0.55);
-  --surface-solid: #17171a;
+  --bg: var(--bg-base);
+  --surface: rgba(20, 20, 22, 0.55); /* --brand-ground, translucent */
+  --surface-solid: var(--brand-ground);
   --surface-hover: rgba(255, 255, 255, 0.035);
 
   /* borders + shadow, matched to the existing header/button look */
@@ -18,26 +19,19 @@
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 
   /* text */
-  --text: #ededee;
-  --text-dim: #97979d;
-  --text-faint: #5c5c62;
+  --text: var(--text-primary);
+  --text-dim: var(--text-secondary);
+  --text-faint: var(--text-tertiary);
 
-  /* accent */
-  --accent: #ff7a30;
-  --accent-strong: #ff9152;
-  --accent-dim: rgba(255, 122, 48, 0.14);
-  --accent-border: rgba(255, 122, 48, 0.35);
+  /* accent: --accent, --accent-strong and --accent-border are in tokens.css */
+  --accent-dim: var(--accent-soft);
 
   /* signal colors */
   --win: #56d364;
   --loss: #f0605a;
   --draw: #8f8f95;
 
-  /* shape */
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 6px;
-  --radius-pill: 999px;
+  /* shape: radius tokens are in tokens.css */
 
   /* type */
   --font-display: "Space Grotesk", "Segoe UI", sans-serif;

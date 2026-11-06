@@ -769,14 +769,14 @@ function barWidth(totalSets: number): number {
 .layout {
   display: grid;
   grid-template-columns: 320px 1fr;
-  gap: 16px;
+  gap: var(--card-gap-md);
   align-items: start;
 }
 
 /* --- list panel --- */
 
 .list-panel {
-  padding: 14px;
+  padding: var(--card-pad-sm);
   animation: rise 0.5s ease 0.05s both;
 }
 
@@ -894,7 +894,7 @@ function barWidth(totalSets: number): number {
 /* --- detail panel --- */
 
 .detail-panel {
-  padding: 20px;
+  padding: var(--card-pad);
   animation: rise 0.5s ease 0.1s both;
 }
 
@@ -1351,7 +1351,7 @@ function barWidth(totalSets: number): number {
   background: var(--accent);
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-md);
-  color: #1a0a00;
+  color: var(--on-accent);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 0.85rem;

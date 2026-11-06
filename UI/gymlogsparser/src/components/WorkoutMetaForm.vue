@@ -78,7 +78,7 @@ defineProps<{
   grid-template-columns: 1fr 170px;
   gap: 10px;
 
-  padding: 16px;
+  padding: var(--card-pad-sm);
 
   border-bottom: 1px solid var(--glass-border);
 }

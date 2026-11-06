@@ -32,7 +32,7 @@
 
   font-size: 20px;
 
-  text-shadow: 0 0 18px rgba(255, 122, 48, 0.45);
+  text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.45);
 }
 
 .empty-state h3 {

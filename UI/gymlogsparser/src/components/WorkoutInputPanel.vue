@@ -103,7 +103,7 @@ koniec 18:46"
   justify-content: space-between;
   gap: 20px;
 
-  padding: 20px 20px 16px;
+  padding: var(--card-pad) var(--card-pad) var(--card-pad-sm);
 
   border-bottom: 1px solid var(--glass-border);
 }
@@ -227,10 +227,10 @@ koniec 18:46"
 .button-primary {
   border: 1px solid var(--accent-border);
 
-  background: linear-gradient(160deg, var(--accent), #d85a1a);
-  color: #1a0a00;
+  background: linear-gradient(160deg, var(--accent), var(--accent-deep));
+  color: var(--on-accent);
 
-  box-shadow: 0 6px 18px rgba(255, 122, 48, 0.28);
+  box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.28);
 }
 
 .button-primary:hover:not(:disabled) {

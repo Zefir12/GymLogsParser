@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Toast from "@/components/Toast.vue";
+import logoGlyph from "@/assets/brand/glyph-on-dark.svg";
 import { storeToRefs } from "pinia";
 import { RouterLink, RouterView } from "vue-router";
 import { useWorkoutStore } from "./stores/workout";
@@ -17,18 +18,7 @@ const { error, success } = storeToRefs(workoutStore);
   <header class="site-header">
     <div class="site-header-inner">
       <RouterLink to="/" class="site-brand">
-        <svg
-          width="26"
-          height="26"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--accent)"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12" />
-        </svg>
+        <img :src="logoGlyph" class="site-logo" alt="" aria-hidden="true" />
         GymLogs
       </RouterLink>
 
@@ -109,6 +99,12 @@ const { error, success } = storeToRefs(workoutStore);
   text-decoration: none;
 }
 
+.site-logo {
+  display: block;
+  width: auto;
+  height: 22px;
+}
+
 .main-nav {
   display: flex;
   flex-wrap: wrap;
@@ -132,7 +128,7 @@ const { error, success } = storeToRefs(workoutStore);
   padding: 8px 12px;
 
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: none;
   color: var(--text-secondary);
 
@@ -160,9 +156,9 @@ const { error, success } = storeToRefs(workoutStore);
   min-height: 44px;
   padding: 0 18px;
 
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--accent);
-  color: #1a0d04;
+  color: var(--on-accent);
 
   font-weight: 600;
   text-decoration: none;
@@ -189,8 +185,4 @@ const { error, success } = storeToRefs(workoutStore);
     flex-basis: 100%;
   }
 }
-</style>
-
-<style>
-@import "@/styles/tokens.css";
 </style>

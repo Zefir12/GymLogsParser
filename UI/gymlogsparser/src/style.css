@@ -8,8 +8,8 @@
     "Segoe UI",
     sans-serif;
 
-  color: #e8eaf0;
-  background: #0b0c0f;
+  color: var(--text-primary);
+  background: var(--bg-base);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,7 +23,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #0b0c0f;
+  background: var(--bg-base);
 }
 
 button,
@@ -70,7 +70,7 @@ button:disabled {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: #f1f2f6;
   color: #0b0c0f;
   font-size: 17px;
@@ -91,7 +91,7 @@ button:disabled {
 
 .panel {
   border: 1px solid #202228;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(17, 18, 22, 0.88);
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.2),
@@ -139,7 +139,7 @@ button:disabled {
   width: 32px;
   height: 26px;
   border: 1px solid #292c34;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   color: #888c97;
   font-size: 10px;
   font-weight: 700;
@@ -152,7 +152,7 @@ button:disabled {
   margin: 0 16px;
   padding: 18px;
   border: 1px solid #252830;
-  border-radius: 13px;
+  border-radius: var(--radius-card);
   outline: none;
   resize: vertical;
   background: #0c0d10;
@@ -187,7 +187,7 @@ button:disabled {
   min-height: 38px;
   padding: 0 16px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   font-size: 12px;
   font-weight: 700;
   transition:
@@ -254,7 +254,7 @@ button:disabled {
 .notice {
   margin: 16px 20px 0;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   font-size: 12px;
 }
 
@@ -308,7 +308,7 @@ button:disabled {
   height: 52px;
   margin-bottom: 18px;
   border: 1px solid #282b32;
-  border-radius: 15px;
+  border-radius: var(--radius-card);
   color: #898d98;
   font-size: 20px;
 }
@@ -352,7 +352,7 @@ button:disabled {
 .workout-meta textarea {
   width: 100%;
   border: 1px solid #272a31;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   outline: none;
   background: #0d0e11;
   color: #dfe1e7;
@@ -384,7 +384,7 @@ button:disabled {
 
 .exercise-card {
   border: 1px solid #252830;
-  border-radius: 13px;
+  border-radius: var(--radius-card);
   background: #101115;
   overflow: hidden;
 }
@@ -403,7 +403,7 @@ button:disabled {
   width: 29px;
   height: 29px;
   flex: 0 0 auto;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: #1b1d23;
   color: #686c77;
   font-family: monospace;
@@ -422,7 +422,7 @@ button:disabled {
 .muscle-input {
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   outline: none;
   background: transparent;
   color: #e6e8ed;
@@ -444,7 +444,7 @@ button:disabled {
   width: 30px;
   height: 30px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #646873;
   font-size: 17px;
@@ -498,7 +498,7 @@ button:disabled {
   height: 30px;
   padding: 0 7px;
   border: 1px solid #272a31;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   outline: none;
   background: #0c0d10;
   color: #cdd0d8;
@@ -518,7 +518,7 @@ button:disabled {
   width: 25px;
   height: 25px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #4e525c;
   font-size: 15px;
@@ -554,7 +554,7 @@ button:disabled {
   min-width: 0;
   padding: 4px 6px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   outline: none;
   background: transparent;
   color: #6d717c;
@@ -570,7 +570,7 @@ button:disabled {
   height: 42px;
   margin: 12px 20px;
   border: 1px dashed #30333b;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: #797d88;
   font-size: 11px;
@@ -628,7 +628,7 @@ button:disabled {
   margin: 0 16px;
   padding: 12px;
   border: 1px solid #252830;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: #0e0f12;
 }
 
@@ -652,7 +652,7 @@ button:disabled {
   flex: 0 0 auto;
   margin-top: 1px;
   border: 1px solid #3a3d46;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #0a0b0d;
 }
 
@@ -696,7 +696,7 @@ button:disabled {
   height: 22px;
   padding: 0 7px;
   border: 1px solid #2d3038;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: #777b86;
   font-size: 8px;
   font-weight: 800;
