@@ -27,7 +27,7 @@ const tiles = computed(() =>
       group,
       label: group === ALL ? "All body parts" : group,
       value: current.toFixed(group === CARDIO ? 0 : 1),
-      unit: group === CARDIO ? "min / week" : "sets / week",
+      unit: group === CARDIO ? "min/wk" : "sets/wk",
       status,
       trend: `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`,
       trendUp: delta >= 0,
@@ -78,8 +78,7 @@ const tiles = computed(() =>
         />
       </span>
       <span class="tile-caption">
-        {{ tile.group === "Cardio" ? "Minutes" : "Sets" }} per week, last 12
-        weeks
+        Last 12 weeks
       </span>
     </button>
   </section>
@@ -88,14 +87,15 @@ const tiles = computed(() =>
 <style scoped>
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
   gap: var(--card-gap);
 }
 
 .tile {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--card-gap-sm);
+  min-width: 0;
   padding: var(--card-pad-sm);
 
   border: 1px solid var(--card-border);
@@ -118,19 +118,22 @@ const tiles = computed(() =>
 
 .tile-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+  gap: 2px 6px;
   width: 100%;
 }
 
 .tile-label {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .tile-status,
 .tile-trend {
-  font-size: 12px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .tile-trend {
@@ -148,32 +151,31 @@ const tiles = computed(() =>
 
 .tile-value-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 2px 6px;
+  width: 100%;
 }
 
 .tile-value {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 22px;
+  line-height: 1.1;
   font-weight: 600;
 }
 
 .tile-unit,
 .tile-caption {
   color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.tile-caption {
   font-size: 11px;
 }
 
 .spark {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: 2px;
   width: 100%;
-  height: 34px;
+  height: 22px;
 }
 
 .spark-bar {
