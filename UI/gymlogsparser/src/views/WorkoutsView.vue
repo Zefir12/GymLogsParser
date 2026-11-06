@@ -15,6 +15,11 @@ import type {
   WorkoutSet,
   WorkoutSummary,
 } from "@/types/workout";
+import ExerciseEditModal from "@/components/ExerciseEditModal.vue";
+import { useExerciseCatalogStore } from "@/stores/exercises";
+import { formatDuration } from "@/utils/format";
+
+const catalog = useExerciseCatalogStore();
 
 const workouts = ref<WorkoutSummary[]>([]);
 const searchQuery = ref("");
@@ -40,6 +45,7 @@ function onResize() {
 onMounted(() => {
   window.addEventListener("resize", onResize);
   loadWorkouts();
+  catalog.ensureLoaded();
 });
 
 onUnmounted(() => {
@@ -116,26 +122,30 @@ function toNum(v: unknown): number | null {
 }
 
 /** Coerces stray empty-string values left behind by cleared number inputs. */
+function sanitizeExercise(ex: WorkoutExercise): WorkoutExercise {
+  return {
+    ...ex,
+    sets: ex.sets.map((s) => ({
+      ...s,
+      weight: toNum(s.weight),
+      reps: toNum(s.reps),
+      rir: toNum(s.rir),
+      rpe: toNum(s.rpe),
+    })),
+    cardio: ex.cardio.map((c) => ({
+      ...c,
+      durationSeconds: toNum(c.durationSeconds),
+      distanceKm: toNum(c.distanceKm),
+      speedKmh: toNum(c.speedKmh),
+      inclinePercent: toNum(c.inclinePercent),
+    })),
+  };
+}
+
 function sanitizeForSave(source: WorkoutLog): WorkoutLog {
   return {
     ...source,
-    exercises: source.exercises.map((ex) => ({
-      ...ex,
-      sets: ex.sets.map((s) => ({
-        ...s,
-        weight: toNum(s.weight),
-        reps: toNum(s.reps),
-        rir: toNum(s.rir),
-        rpe: toNum(s.rpe),
-      })),
-      cardio: ex.cardio.map((c) => ({
-        ...c,
-        durationSeconds: toNum(c.durationSeconds),
-        distanceKm: toNum(c.distanceKm),
-        speedKmh: toNum(c.speedKmh),
-        inclinePercent: toNum(c.inclinePercent),
-      })),
-    })),
+    exercises: source.exercises.map(sanitizeExercise),
   };
 }
 
@@ -195,24 +205,59 @@ function removePerson(index: number) {
 }
 
 // --- exercises ---
+// Exercises are edited in ExerciseEditModal, on a copy; the result replaces the
+// exercise in the workout, which is then saved with "Zapisz zmiany" as before.
+
+interface ExerciseEditorState {
+  /** Position in workout.exercises, or null for a new exercise. */
+  index: number | null;
+  exercise: WorkoutExercise;
+}
+
+const exerciseEditor = ref<ExerciseEditorState | null>(null);
+
+function openExerciseEditor(index: number) {
+  const exercise = workout.value?.exercises[index];
+  if (!exercise) return;
+  exerciseEditor.value = { index, exercise };
+}
 
 function addExercise(category: ExerciseCategory) {
   if (!workout.value) return;
 
-  const exercise: WorkoutExercise = {
-    exerciseId: crypto.randomUUID(),
-    name: "",
-    muscleGroup: null,
-    notes: null,
-    category,
-    sets: category === "Strength" ? [emptySet(1)] : [],
-    cardio: category === "Cardio" ? [emptyCardio()] : [],
+  exerciseEditor.value = {
+    index: null,
+    exercise: {
+      exerciseId: "",
+      name: "",
+      muscleGroup: null,
+      notes: null,
+      category,
+      sets: category === "Strength" ? [emptySet(1)] : [],
+      cardio: category === "Cardio" ? [emptyCardio()] : [],
+    },
   };
+}
 
-  workout.value.exercises.push(exercise);
+function onExerciseSaved(updated: WorkoutExercise) {
+  const state = exerciseEditor.value;
+  exerciseEditor.value = null;
+  if (!workout.value || !state) return;
+
+  const exercise = sanitizeExercise(updated);
+  if (state.index === null) workout.value.exercises.push(exercise);
+  else workout.value.exercises.splice(state.index, 1, exercise);
+}
+
+function closeExerciseEditor() {
+  exerciseEditor.value = null;
 }
 
 function removeExercise(index: number) {
+  const exercise = workout.value?.exercises[index];
+  if (!exercise) return;
+  const name = exercise.name || "bez nazwy";
+  if (!window.confirm(`Usunąć ćwiczenie „${name}” z tego treningu?`)) return;
   workout.value?.exercises.splice(index, 1);
 }
 
@@ -240,33 +285,84 @@ function emptyCardio(): CardioEntry {
   };
 }
 
-function addSet(exerciseIndex: number) {
-  const ex = workout.value?.exercises[exerciseIndex];
-  if (!ex) return;
-  ex.sets.push(emptySet(ex.sets.length + 1));
+function isOffCatalog(ex: WorkoutExercise): boolean {
+  return (
+    catalog.definitions.length > 0 &&
+    !!ex.exerciseId &&
+    !catalog.byId(ex.exerciseId)
+  );
 }
 
-function removeSet(exerciseIndex: number, setIndex: number) {
-  const ex = workout.value?.exercises[exerciseIndex];
-  if (!ex) return;
-  ex.sets.splice(setIndex, 1);
-  ex.sets.forEach((s, i) => (s.setNumber = i + 1));
+const numberFormat = new Intl.NumberFormat("pl-PL", {
+  maximumFractionDigits: 2,
+});
+
+function fmt(n: number): string {
+  return numberFormat.format(n);
 }
 
-function addCardioEntry(exerciseIndex: number) {
-  const ex = workout.value?.exercises[exerciseIndex];
-  if (!ex) return;
-  ex.cardio.push(emptyCardio());
+function isNum(v: unknown): v is number {
+  return typeof v === "number" && !Number.isNaN(v);
 }
 
-function removeCardioEntry(exerciseIndex: number, cardioIndex: number) {
-  workout.value?.exercises[exerciseIndex]?.cardio.splice(cardioIndex, 1);
+function setsSummary(ex: WorkoutExercise): string {
+  const n = ex.sets.length;
+  if (n === 0) return "brak serii";
+
+  const parts = [`${n} ${plural(n, "seria", "serie", "serii")}`];
+
+  let top: WorkoutSet | null = null;
+  for (const s of ex.sets) {
+    if (isNum(s.weight) && s.weight > 0 && (!top || s.weight > (top.weight ?? 0)))
+      top = s;
+  }
+  if (top && isNum(top.weight)) {
+    parts.push(
+      `maks. ${fmt(top.weight)} kg${isNum(top.reps) ? ` × ${top.reps}` : ""}`,
+    );
+  }
+
+  return parts.join(" · ");
 }
 
-function isPrSet(sets: WorkoutSet[], index: number): boolean {
-  const weights = sets.map((s) => s.weight ?? -Infinity);
-  const max = Math.max(...weights);
-  return max > 0 && weights[index] === max && weights.indexOf(max) === index;
+interface SetChip {
+  label: string;
+  warmup: boolean;
+  more: boolean;
+}
+
+const MAX_SET_CHIPS = 8;
+
+function setChips(ex: WorkoutExercise): SetChip[] {
+  const chips: SetChip[] = ex.sets.slice(0, MAX_SET_CHIPS).map((s) => {
+    const weight = isNum(s.weight) ? fmt(s.weight) : "—";
+    const reps = isNum(s.reps) ? String(s.reps) : "—";
+    return { label: `${weight}×${reps}`, warmup: s.warmup === true, more: false };
+  });
+  const rest = ex.sets.length - MAX_SET_CHIPS;
+  if (rest > 0) chips.push({ label: `+${rest}`, warmup: false, more: true });
+  return chips;
+}
+
+function cardioSummary(ex: WorkoutExercise): string {
+  const n = ex.cardio.length;
+  if (n === 0) return "brak wpisów";
+
+  const parts = [`${n} ${plural(n, "wpis", "wpisy", "wpisów")}`];
+
+  const seconds = ex.cardio.reduce(
+    (sum, c) => sum + (isNum(c.durationSeconds) ? c.durationSeconds : 0),
+    0,
+  );
+  if (seconds > 0) parts.push(formatDuration(seconds));
+
+  const km = ex.cardio.reduce(
+    (sum, c) => sum + (isNum(c.distanceKm) ? c.distanceKm : 0),
+    0,
+  );
+  if (km > 0) parts.push(`${fmt(km)} km`);
+
+  return parts.join(" · ");
 }
 
 // --- time inputs (TimeOnly comes through as "HH:mm:ss") ---
@@ -300,13 +396,18 @@ function formatDate(date: string | null): string {
   }).format(d);
 }
 
-function pluralExercises(n: number): string {
-  if (n === 1) return "ćwiczenie";
+/** Polish plural: 1 seria, 2–4 serie (but 12–14 serii), 5+ serii. */
+function plural(n: number, one: string, few: string, many: string): string {
+  if (n === 1) return one;
   const lastDigit = n % 10;
   const lastTwo = n % 100;
   if (lastDigit >= 2 && lastDigit <= 4 && !(lastTwo >= 12 && lastTwo <= 14))
-    return "ćwiczenia";
-  return "ćwiczeń";
+    return few;
+  return many;
+}
+
+function pluralExercises(n: number): string {
+  return plural(n, "ćwiczenie", "ćwiczenia", "ćwiczeń");
 }
 
 function barWidth(totalSets: number): number {
@@ -500,178 +601,93 @@ function barWidth(totalSets: number): number {
               Brak ćwiczeń w tym treningu. Dodaj pierwsze powyżej.
             </p>
 
-            <div
-              v-for="(ex, exIdx) in workout.exercises"
-              :key="ex.exerciseId + exIdx"
-              class="exercise-block"
-            >
-              <div class="exercise-block__header">
-                <span class="glyph">{{
-                  ex.category === "Cardio" ? "♞" : "♟"
-                }}</span>
-                <input
-                  v-model="ex.name"
-                  type="text"
-                  class="exercise-name-input"
-                  placeholder="Nazwa ćwiczenia"
-                />
-                <input
-                  v-model="ex.muscleGroup"
-                  type="text"
-                  class="muscle-group-input"
-                  placeholder="Partia mięśniowa"
-                />
+            <ul v-else class="exercise-cards">
+              <li
+                v-for="(ex, exIdx) in workout.exercises"
+                :key="exIdx"
+                class="exercise-card"
+              >
+                <button
+                  type="button"
+                  class="exercise-card__main"
+                  :aria-label="`Edytuj ćwiczenie: ${ex.name || 'bez nazwy'}`"
+                  @click="openExerciseEditor(exIdx)"
+                >
+                  <span class="exercise-card__index">{{ exIdx + 1 }}</span>
+                  <span class="exercise-card__body">
+                    <span class="exercise-card__title">
+                      <span class="exercise-card__name">{{
+                        ex.name || "Ćwiczenie bez nazwy"
+                      }}</span>
+                      <span
+                        v-if="isOffCatalog(ex)"
+                        class="exercise-card__flag"
+                        title="Tego ćwiczenia nie ma w katalogu. Otwórz je i wybierz z listy."
+                        >spoza katalogu</span
+                      >
+                    </span>
+                    <span class="exercise-card__meta">
+                      <span
+                        class="exercise-card__kind"
+                        :class="{
+                          'exercise-card__kind--cardio':
+                            ex.category === 'Cardio',
+                        }"
+                        >{{ ex.category === "Cardio" ? "Cardio" : "Siłowe" }}</span
+                      >
+                      <template v-if="ex.muscleGroup">
+                        · {{ ex.muscleGroup }}</template
+                      >
+                      ·
+                      {{
+                        ex.category === "Cardio"
+                          ? cardioSummary(ex)
+                          : setsSummary(ex)
+                      }}
+                    </span>
+                    <span
+                      v-if="ex.category === 'Strength' && ex.sets.length"
+                      class="exercise-card__sets"
+                    >
+                      <span
+                        v-for="(chip, cIdx) in setChips(ex)"
+                        :key="cIdx"
+                        class="set-chip"
+                        :class="{
+                          'set-chip--warmup': chip.warmup,
+                          'set-chip--more': chip.more,
+                        }"
+                        >{{ chip.label }}</span
+                      >
+                    </span>
+                    <span v-if="ex.notes" class="exercise-card__notes">{{
+                      ex.notes
+                    }}</span>
+                  </span>
+                  <span class="exercise-card__edit" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" width="13" height="13">
+                      <path
+                        d="M10.5 2.5l3 3L6 13H3v-3z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.3"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    Edytuj
+                  </span>
+                </button>
                 <button
                   type="button"
                   class="remove-button"
-                  aria-label="Usuń ćwiczenie"
+                  :aria-label="`Usuń ćwiczenie: ${ex.name || 'bez nazwy'}`"
+                  title="Usuń ćwiczenie"
                   @click="removeExercise(exIdx)"
                 >
                   ×
                 </button>
-              </div>
-
-              <div v-if="ex.category === 'Strength'" class="sets-table">
-                <div class="sets-table__row sets-table__row--head">
-                  <span>Seria</span>
-                  <span>Waga</span>
-                  <span>Powt.</span>
-                  <span>RIR</span>
-                  <span>RPE</span>
-                  <span>Rozgrz.</span>
-                  <span class="sets-table__notes-head">Notatki</span>
-                  <span></span>
-                </div>
-
-                <div
-                  v-for="(s, sIdx) in ex.sets"
-                  :key="sIdx"
-                  class="sets-table__row"
-                  :class="{ 'sets-table__row--pr': isPrSet(ex.sets, sIdx) }"
-                >
-                  <span class="set-number">
-                    <span
-                      v-if="isPrSet(ex.sets, sIdx)"
-                      class="glyph glyph--pr"
-                      title="Najlepszy ciężar w tym ćwiczeniu"
-                      >♛</span
-                    >
-                    {{ s.setNumber }}
-                  </span>
-                  <input
-                    v-model.number="s.weight"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                  />
-                  <input
-                    v-model.number="s.reps"
-                    type="number"
-                    min="0"
-                    step="1"
-                  />
-                  <input
-                    v-model.number="s.rir"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                  />
-                  <input
-                    v-model.number="s.rpe"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                  />
-                  <input v-model="s.warmup" type="checkbox" />
-                  <input
-                    v-model="s.notes"
-                    type="text"
-                    class="notes-input"
-                    placeholder="—"
-                  />
-                  <button
-                    type="button"
-                    class="remove-button remove-button--sm"
-                    aria-label="Usuń serię"
-                    @click="removeSet(exIdx, sIdx)"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  class="ghost-button ghost-button--sm"
-                  @click="addSet(exIdx)"
-                >
-                  ♟ Dodaj serię
-                </button>
-              </div>
-
-              <div v-else class="cardio-table">
-                <div
-                  v-for="(c, cIdx) in ex.cardio"
-                  :key="cIdx"
-                  class="cardio-row"
-                >
-                  <label class="field"
-                    ><span>Aktywność</span
-                    ><input v-model="c.activity" type="text"
-                  /></label>
-                  <label class="field"
-                    ><span>Czas (s)</span
-                    ><input
-                      v-model.number="c.durationSeconds"
-                      type="number"
-                      min="0"
-                  /></label>
-                  <label class="field"
-                    ><span>Dystans (km)</span
-                    ><input
-                      v-model.number="c.distanceKm"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                  /></label>
-                  <label class="field"
-                    ><span>Prędkość (km/h)</span
-                    ><input
-                      v-model.number="c.speedKmh"
-                      type="number"
-                      min="0"
-                      step="0.1"
-                  /></label>
-                  <label class="field"
-                    ><span>Nachylenie (%)</span
-                    ><input
-                      v-model.number="c.inclinePercent"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                  /></label>
-                  <label class="field field--grow"
-                    ><span>Notatki</span
-                    ><input v-model="c.notes" type="text" placeholder="—"
-                  /></label>
-                  <button
-                    type="button"
-                    class="remove-button remove-button--sm"
-                    aria-label="Usuń wpis cardio"
-                    @click="removeCardioEntry(exIdx, cIdx)"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  class="ghost-button ghost-button--sm"
-                  @click="addCardioEntry(exIdx)"
-                >
-                  ♞ Dodaj wpis
-                </button>
-              </div>
-            </div>
+              </li>
+            </ul>
           </div>
 
           <footer class="detail-footer">
@@ -717,6 +733,14 @@ function barWidth(totalSets: number): number {
         </p>
       </section>
     </div>
+
+    <ExerciseEditModal
+      v-if="exerciseEditor"
+      :exercise="exerciseEditor.exercise"
+      :is-new="exerciseEditor.index === null"
+      @save="onExerciseSaved"
+      @cancel="closeExerciseEditor"
+    />
   </div>
 </template>
 
@@ -994,11 +1018,6 @@ function barWidth(totalSets: number): number {
   font-family: var(--font-body);
 }
 
-.field--grow {
-  flex: 1;
-  min-width: 120px;
-}
-
 .section-label {
   display: flex;
   align-items: center;
@@ -1118,58 +1137,170 @@ function barWidth(totalSets: number): number {
   outline-offset: 1px;
 }
 
-.ghost-button--sm {
-  margin-top: 8px;
-  padding: 5px 10px;
-  font-size: 0.76rem;
-}
-
-.exercise-block {
-  border-top: 1px solid var(--border);
-  padding: 14px 0;
-}
-
-.exercise-block__header {
+.exercise-cards {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: var(--card-gap-sm);
+
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.exercise-name-input {
-  flex: 2;
-  min-width: 120px;
-  padding: 7px 9px;
+.exercise-card {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.exercise-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  padding: var(--card-pad-sm);
+
   background: var(--surface-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    border-color 150ms var(--ease),
+    background 150ms var(--ease);
 }
 
-.muscle-group-input {
-  flex: 1;
-  min-width: 100px;
-  padding: 7px 9px;
-  background: var(--surface-hover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-dim);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
+.exercise-card__main:hover {
+  border-color: var(--accent-border);
+  background: var(--glass);
 }
 
-.exercise-name-input:focus-visible,
-.muscle-group-input:focus-visible {
+.exercise-card__main:focus-visible {
   outline: 2px solid var(--accent-border);
   outline-offset: 1px;
 }
 
+.exercise-card__index {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.exercise-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exercise-card__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exercise-card__name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.exercise-card__flag {
+  padding: 1px 6px;
+
+  border: 1px solid rgba(230, 180, 80, 0.35);
+  border-radius: var(--radius-xs);
+  color: var(--warning);
+  font-size: 0.66rem;
+}
+
+.exercise-card__meta {
+  color: var(--text-faint);
+  font-size: 0.76rem;
+}
+
+.exercise-card__kind {
+  color: var(--accent-text);
+}
+
+.exercise-card__kind--cardio {
+  color: var(--success);
+}
+
+.exercise-card__sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.set-chip {
+  padding: 2px 6px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--glass-soft);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-chip--warmup {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.set-chip--more {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-faint);
+}
+
+.exercise-card__notes {
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exercise-card__edit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+
+  color: var(--text-faint);
+  font-size: 0.76rem;
+
+  transition: color 150ms var(--ease);
+}
+
+.exercise-card__main:hover .exercise-card__edit,
+.exercise-card__main:focus-visible .exercise-card__edit {
+  color: var(--accent-text);
+}
+
 .remove-button {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 32px;
   display: grid;
   place-items: center;
 
@@ -1180,100 +1311,22 @@ function barWidth(totalSets: number): number {
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
+
+  transition:
+    color 150ms var(--ease),
+    border-color 150ms var(--ease),
+    background 150ms var(--ease);
 }
 
 .remove-button:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
 }
 
 .remove-button:focus-visible {
   outline: 2px solid var(--accent-border);
   outline-offset: 1px;
-}
-
-.remove-button--sm {
-  width: 22px;
-  height: 22px;
-  font-size: 0.85rem;
-}
-
-/* sets table */
-
-.sets-table__row {
-  display: grid;
-  grid-template-columns: 46px 64px 56px 52px 52px 56px 1fr 30px;
-  gap: 6px;
-  align-items: center;
-  padding: 5px 0;
-}
-
-.sets-table__row--head span {
-  font-size: 0.68rem;
-  color: var(--text-faint);
-}
-
-.sets-table__notes-head {
-  padding-left: 2px;
-}
-
-.sets-table__row--pr {
-  background: var(--accent-dim);
-  border-radius: var(--radius-sm);
-}
-
-.set-number {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.82rem;
-  color: var(--text-dim);
-}
-
-.sets-table input[type="number"],
-.sets-table input[type="text"] {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 7px;
-  background: var(--surface-hover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-}
-
-.sets-table input[type="checkbox"] {
-  justify-self: center;
-  accent-color: var(--accent);
-}
-
-.sets-table input:focus-visible {
-  outline: 2px solid var(--accent-border);
-  outline-offset: 1px;
-}
-
-.notes-input {
-  min-width: 0;
-}
-
-/* cardio table */
-
-.cardio-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.cardio-row input {
-  width: 100px;
-}
-
-.cardio-row .field--grow input {
-  width: 100%;
 }
 
 /* --- footer --- */
@@ -1420,14 +1473,7 @@ function barWidth(totalSets: number): number {
     display: none;
   }
 
-  .sets-table__row {
-    grid-template-columns: 36px 52px 46px 1fr 26px;
-  }
-
-  .sets-table__row span:nth-child(4),
-  .sets-table__row span:nth-child(5),
-  .sets-table input:nth-child(4),
-  .sets-table input:nth-child(5) {
+  .exercise-card__edit {
     display: none;
   }
 
