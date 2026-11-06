@@ -18,6 +18,8 @@ const ranges: { value: DashboardRange; label: string }[] = [
   { value: "3M", label: "3M" },
   { value: "6M", label: "6M" },
   { value: "1Y", label: "1Y" },
+  { value: "5Y", label: "5Y" },
+  { value: "10Y", label: "10Y" },
 ];
 
 const summaryLine = computed(() => {
@@ -49,7 +51,7 @@ onMounted(store.load);
     <p v-else-if="!store.data" class="status">Loading your training…</p>
 
     <div v-else-if="store.data.days.length === 0" class="empty">
-      <p>No workouts with a date in the last 12 months yet.</p>
+      <p>No workouts with a date in the {{ RANGE_LABEL[store.range] }} yet.</p>
       <RouterLink to="/log" class="cta">+ Log workout</RouterLink>
     </div>
 

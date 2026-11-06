@@ -8,12 +8,19 @@ export const RANGE_DAYS: Record<DashboardRange, number> = {
   "3M": 91,
   "6M": 182,
   "1Y": 365,
+  "5Y": 1826,
+  "10Y": 3653,
 };
+
+/** Ranges whose progress chart labels years instead of months. */
+export const YEAR_TICK_RANGES: readonly DashboardRange[] = ["5Y", "10Y"];
 
 export const RANGE_LABEL: Record<DashboardRange, string> = {
   "3M": "last 3 months",
   "6M": "last 6 months",
   "1Y": "last 12 months",
+  "5Y": "last 5 years",
+  "10Y": "last 10 years",
 };
 
 export const ALL = "All";
@@ -115,6 +122,16 @@ export function monthName(day: number): string {
 export function formatDay(day: number): string {
   const d = dayDate(day);
   return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** Day number of 1 January of the year after `day`. */
+export function nextYearStart(day: number): number {
+  return Math.round(Date.UTC(dayDate(day).getUTCFullYear() + 1, 0, 1) / DAY_MS);
+}
+
+/** Day number of the Monday of the week that contains `day`. */
+export function weekStart(day: number): number {
+  return day - ((dayDate(day).getUTCDay() + 6) % 7);
 }
 
 /** Day number of the first of the month after `day`. */

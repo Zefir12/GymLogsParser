@@ -1,9 +1,15 @@
+export type ExerciseCategory = "Strength" | "Cardio";
+
+/** One entry of the stored exercise catalog (`/api/exercises/definitions`). */
 export interface ExerciseDefinition {
+  /** Stable kebab-case ID. Empty on create means "derive it from the name". */
   id: string;
   name: string;
-  category: "Strength" | "Cardio";
+  category: ExerciseCategory;
   muscleGroup: string;
   barbell: boolean;
+  /** Other names written in logs; the parser maps them to this exercise. */
+  aliases: string[];
 }
 
 export interface ExerciseSummary {

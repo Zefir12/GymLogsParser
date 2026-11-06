@@ -8,7 +8,10 @@ namespace Core.Models;
 /// </summary>
 public sealed class DashboardData
 {
-    /// <summary>First day covered (a Monday, 52 weeks before the week of <see cref="To"/>).</summary>
+    /// <summary>
+    /// First day covered: a Monday at least 52 weeks before the week of <see cref="To"/>,
+    /// earlier when the requested range needs it.
+    /// </summary>
     public DateOnly From { get; set; }
 
     /// <summary>Last day covered (inclusive).</summary>

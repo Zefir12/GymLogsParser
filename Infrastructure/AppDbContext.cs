@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Exercise> WorkoutExercises => Set<Exercise>();
     public DbSet<Set> WorkoutSets => Set<Set>();
     public DbSet<Cardio> CardioEntries => Set<Cardio>();
+    public DbSet<ExerciseDefinitionEntity> ExerciseDefinitions => Set<ExerciseDefinitionEntity>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,6 +67,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.SpeedKmh).HasPrecision(10, 3);
             entity.Property(x => x.InclinePercent).HasPrecision(10, 3);
             entity.HasIndex(x => x.WorkoutExerciseId);
+        });
+
+        modelBuilder.Entity<ExerciseDefinitionEntity>(entity =>
+        {
+            entity.ToTable("exercise_definitions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasMaxLength(100);
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Category).HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.MuscleGroup).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Aliases).HasColumnType("text[]");
         });
     }
 }
