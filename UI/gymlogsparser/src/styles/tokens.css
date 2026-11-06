@@ -41,9 +41,30 @@
   --success-bg: rgba(134, 198, 163, 0.09);
   --success-border: rgba(134, 198, 163, 0.28);
 
+  --warning: #e6b450;
+
   --danger: #e28d9c;
   --danger-bg: rgba(226, 141, 156, 0.09);
   --danger-border: rgba(226, 141, 156, 0.3);
+
+  /* --- dashboard: cards, tracks, segmented controls --- */
+  --card-bg: #131416;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --header-bg: #0e0f12;
+  --track: #1c1d22;
+  --segment-bg: #15161a;
+  --segment-on: #2a2b31;
+  --bar-idle: #5c606b;
+  --spark-idle: #3a3c44;
+  --spark-recent: #8b8f99;
+  --spark-active: #8a3f15;
+
+  /* heatmap scale, rest day to most sets */
+  --heat-0: #1c1d22;
+  --heat-1: #4a2a17;
+  --heat-2: #8a3f15;
+  --heat-3: #d45f1f;
+  --heat-4: #ff8a45;
 
   /* --- radius: slightly rounder than a sharp SaaS default,
      stopping short of full pill shapes --- */

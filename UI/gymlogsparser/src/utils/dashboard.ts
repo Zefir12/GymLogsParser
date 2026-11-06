@@ -1,0 +1,141 @@
+import type { DashboardExercise, DashboardRange } from "@/types/dashboard";
+
+/** Weekly working-set target band per muscle group. */
+export const TARGET_MIN = 10;
+export const TARGET_MAX = 20;
+
+export const RANGE_DAYS: Record<DashboardRange, number> = {
+  "3M": 91,
+  "6M": 182,
+  "1Y": 365,
+};
+
+export const RANGE_LABEL: Record<DashboardRange, string> = {
+  "3M": "last 3 months",
+  "6M": "last 6 months",
+  "1Y": "last 12 months",
+};
+
+export const ALL = "All";
+export const CARDIO = "Cardio";
+
+/** Shown in the exercises table when "All body parts" is selected. */
+export const MAIN_LIFT_IDS = [
+  "barbell-bench-press",
+  "overhead-press",
+  "barbell-deadlift",
+  "barbell-row",
+  "barbell-squat",
+  "romanian-deadlift",
+];
+
+/** Tile/bar order for the usual groups; anything else follows alphabetically, Cardio last. */
+const GROUP_ORDER = [
+  "Chest",
+  "Back",
+  "Shoulders",
+  "Legs",
+  "Quadriceps",
+  "Hamstrings",
+  "Glutes",
+  "Calves",
+  "Biceps",
+  "Triceps",
+  "Abs",
+  "Core",
+  "Full Body",
+];
+
+export function sortGroups(groups: Iterable<string>): string[] {
+  const rank = (g: string) => {
+    if (g === CARDIO) return Number.MAX_SAFE_INTEGER;
+    const i = GROUP_ORDER.indexOf(g);
+    return i === -1 ? GROUP_ORDER.length : i;
+  };
+  return [...new Set(groups)].sort(
+    (a, b) => rank(a) - rank(b) || a.localeCompare(b),
+  );
+}
+
+export function groupOf(exercise: DashboardExercise | undefined): string {
+  if (!exercise) return "Other";
+  if (exercise.category === "Cardio") return CARDIO;
+  return exercise.muscleGroup || "Other";
+}
+
+export type TargetStatus = "Below target" | "On target" | "Above target";
+
+export function targetStatus(setsPerWeek: number): TargetStatus {
+  if (setsPerWeek < TARGET_MIN) return "Below target";
+  if (setsPerWeek > TARGET_MAX) return "Above target";
+  return "On target";
+}
+
+// --- dates: whole days since the epoch, in UTC so DST never shifts a day ---
+
+const DAY_MS = 86_400_000;
+
+export function dayNumber(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / DAY_MS);
+}
+
+export function dayDate(day: number): Date {
+  return new Date(day * DAY_MS);
+}
+
+/** Local today as yyyy-MM-dd. */
+export function todayIso(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function monthName(day: number): string {
+  return MONTHS[dayDate(day).getUTCMonth()];
+}
+
+/** e.g. "Mon 3 Nov" */
+export function formatDay(day: number): string {
+  const d = dayDate(day);
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** Day number of the first of the month after `day`. */
+export function nextMonthStart(day: number): number {
+  const d = dayDate(day);
+  return Math.round(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / DAY_MS);
+}
+
+// --- numbers ---
+
+export function formatNumber(value: number): string {
+  return Math.abs(value) >= 1000
+    ? Math.round(value).toLocaleString("en-US")
+    : String(Math.round(value * 10) / 10);
+}
+
+export function formatKg(value: number): string {
+  return `${formatNumber(value)} kg`;
+}
+
+/** "+1.5" / "−1.5" with a real minus sign. */
+export function signed(value: number, digits = 1): string {
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(digits)}`;
+}

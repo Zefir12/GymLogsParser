@@ -1,13 +1,15 @@
 # gym-logs-parser on nudge (stack from git, compose_path: deploy/compose.yaml).
 # Images only: build and push them first (see deploy/README.md).
 # Variables come from the stack's .env in nudge; deploy/.env.example lists them all.
-# The `ui` container is the only entry point: nginx serves the SPA and proxies
-# /api/*, /signin-oidc and /signout-callback-oidc to `api`.
+# Backend only: the Vue frontend is on Cloudflare Pages. The host's reverse proxy
+# forwards the API's public hostname to the published `api` port.
 
 services:
   api:
     image: registrydedic.zefirlabs.net/gymlogsparser:${API_TAG:-latest}
     restart: unless-stopped
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8085}:8080"
     # Every Section__Key in the stack env reaches the app (overrides appsettings.json).
     env_file: .env
     environment:
@@ -18,19 +20,7 @@ services:
       Auth__ClientId: ${Auth__ClientId:?set Auth__ClientId in the stack env}
       Auth__ClientSecret: ${Auth__ClientSecret:?set Auth__ClientSecret in the stack env}
       Auth__FrontendUrl: ${Auth__FrontendUrl:?set Auth__FrontendUrl in the stack env}
+      Frontend__Cors: ${Frontend__Cors:?set Frontend__Cors to the Cloudflare Pages URL in the stack env}
       DeepSeek__ApiKey: ${DeepSeek__ApiKey:?set DeepSeek__ApiKey in the stack env}
     # No healthcheck: the aspnet image has no curl/wget, and every route except the
     # auth redirects needs a login. Startup (and migration) errors show in its logs.
-
-  ui:
-    image: registrydedic.zefirlabs.net/gymlogsparser-ui:${UI_TAG:-latest}
-    restart: unless-stopped
-    depends_on:
-      - api
-    ports:
-      - "${UI_BIND:-127.0.0.1}:${UI_PORT:-8085}:8080"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
-      interval: 30s
-      timeout: 3s
-      retries: 3

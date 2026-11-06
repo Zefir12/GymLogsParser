@@ -1,6 +1,7 @@
 import { api } from "@/api/api";
 import type { ParseWorkoutResponse, WorkoutLog } from "@/types/workout";
 import type { ExerciseProgressPoint, ExerciseSummary } from "@/types/exercise";
+import type { DashboardData } from "@/types/dashboard";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
   api.post<ParseWorkoutResponse>("/ai/parse-workout", {
@@ -28,6 +29,10 @@ export const getExerciseProgress = (exerciseId: string) =>
   api.get<ExerciseProgressPoint[]>(
     `/exercises/${encodeURIComponent(exerciseId)}/progress`,
   );
+
+/** `to` is the client's local today (yyyy-MM-dd), so "this week" matches the user's calendar. */
+export const getDashboard = (to: string) =>
+  api.get<DashboardData>(`/dashboard?to=${encodeURIComponent(to)}`);
 
 export interface WorkoutSummary {
   id: string;

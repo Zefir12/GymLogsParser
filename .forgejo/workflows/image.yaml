@@ -1,11 +1,10 @@
-# Builds the two images, one matrix leg each with the same tag: the API
-# (GymLogsParser/Dockerfile, registrydedic.zefirlabs.net/gymlogsparser) and the UI
-# (UI/gymlogsparser/Dockerfile, registrydedic.zefirlabs.net/gymlogsparser-ui).
+# Builds the API image (GymLogsParser/Dockerfile, registrydedic.zefirlabs.net/gymlogsparser).
+# The Vue frontend is not built here: Cloudflare Pages builds it on every push to main.
 # On a pull request it only builds, as a check, and only when the PR touches what the
 # image build depends on beyond the code. On a push to develop it also pushes to the
 # registry as `develop-<sha>` and `develop`; on a push to main as `main-<sha>` and
 # `latest` (rebuilt from main, not promoted from develop). nudge's stack picks them up
-# through API_TAG/UI_TAG (deploy/README.md).
+# through API_TAG (deploy/README.md).
 # Jobs get no Docker socket, so kaniko builds the image: no daemon, no privileges, and
 # it pushes straight to the registry.
 #
@@ -25,11 +24,6 @@ on:
       - .dockerignore
       - '**/*.csproj'
       - GymLogsParser/Dockerfile
-      - UI/gymlogsparser/Dockerfile
-      - UI/gymlogsparser/.dockerignore
-      - UI/gymlogsparser/nginx.conf
-      - UI/gymlogsparser/package.json
-      - UI/gymlogsparser/pnpm-lock.yaml
       - .forgejo/workflows/image.yaml
 
 # Pull requests cancel their older builds; pushes for a branch queue up, so `develop`
@@ -53,14 +47,6 @@ jobs:
             image: registrydedic.zefirlabs.net/gymlogsparser
             context: .
             dockerfile: GymLogsParser/Dockerfile
-          # Context is the UI folder, as in `make publish-ui` (no build args: the
-          # Dockerfile's VITE_API_URL=/api default is what the deploy needs). kaniko
-          # reads .dockerignore from the context root, so UI/gymlogsparser/.dockerignore
-          # applies here, not the root one.
-          - name: gymlogsparser-ui
-            image: registrydedic.zefirlabs.net/gymlogsparser-ui
-            context: UI/gymlogsparser
-            dockerfile: UI/gymlogsparser/Dockerfile
     container:
       image: node:24 # checkout needs node; the build itself runs in kaniko's container
     env:
@@ -71,7 +57,6 @@ jobs:
     outputs:
       tag: ${{ steps.digest.outputs.tag }}
       digest-gymlogsparser: ${{ steps.digest.outputs.digest-gymlogsparser }}
-      digest-gymlogsparser-ui: ${{ steps.digest.outputs.digest-gymlogsparser-ui }}
 
     steps:
       - name: Checkout
