@@ -26,7 +26,7 @@ async function parseWorkout() {
 </script>
 
 <template>
-  <div class="home-view">
+  <div class="log-view">
     <AppHeader @new-workout="store.newWorkout" />
 
     <section class="workspace">

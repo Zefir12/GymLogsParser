@@ -12,6 +12,7 @@ public static class ServiceRegistration
         public IServiceCollection AddApplicationServices(IConfiguration configuration)
         {
             services.AddMemoryCache();
+            services.AddScoped<IDashboardService, DashboardService>();
             services.AddHttpClient<IDeepSeekService, DeepSeekService>((serviceProvider, client) =>
             {
                 var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<DeepSeekOptions>>().Value;
