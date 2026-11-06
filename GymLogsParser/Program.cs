@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization;
 using GymLogsParser.Extensions;
 using GymLogsParser.Configuration;
+using Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +36,15 @@ builder.Services.AddAppAuthorization(builder.Environment);
 
 
 var app = builder.Build();
+
+// Off by default; the deploy compose turns it on so a fresh database gets its schema.
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await using var db = await app.Services
+        .GetRequiredService<IDbContextFactory<AppDbContext>>()
+        .CreateDbContextAsync();
+    await db.Database.MigrateAsync();
+}
 
 app.UseForwardedHeaders();
 

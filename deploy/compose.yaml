@@ -1,0 +1,58 @@
+# gym-logs-parser on nudge (stack from git, compose_path: deploy/compose.yaml).
+# Images only: build and push them first (see deploy/README.md).
+# Variables come from the stack's .env in nudge; deploy/.env.example lists them all.
+# The `ui` container is the only entry point: nginx serves the SPA and proxies
+# /api/*, /signin-oidc and /signout-callback-oidc to `api`.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gymlogs}
+      POSTGRES_USER: ${POSTGRES_USER:-gymlogs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the stack env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    image: registrydedic.zefirlabs.net/gymlogsparser:${API_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Every Section__Key in the stack env reaches the app (overrides appsettings.json).
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__GymLogs: "${ConnectionStrings__GymLogs:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-gymlogs};Username=${POSTGRES_USER:-gymlogs};Password=${POSTGRES_PASSWORD}}"
+      Database__MigrateOnStartup: ${Database__MigrateOnStartup:-true}
+      Auth__Authority: ${Auth__Authority:?set Auth__Authority in the stack env}
+      Auth__ClientId: ${Auth__ClientId:?set Auth__ClientId in the stack env}
+      Auth__ClientSecret: ${Auth__ClientSecret:?set Auth__ClientSecret in the stack env}
+      Auth__FrontendUrl: ${Auth__FrontendUrl:?set Auth__FrontendUrl in the stack env}
+      DeepSeek__ApiKey: ${DeepSeek__ApiKey:?set DeepSeek__ApiKey in the stack env}
+    # No healthcheck: the aspnet image has no curl/wget, and every route except the
+    # auth redirects needs a login. Startup (and migration) errors show in its logs.
+
+  ui:
+    image: registrydedic.zefirlabs.net/gymlogsparser-ui:${UI_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${UI_BIND:-127.0.0.1}:${UI_PORT:-8085}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  pgdata:
