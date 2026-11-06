@@ -13,12 +13,13 @@ public static class MuscleGroups
     /// <summary>Warm-up and mobility drills: kept in the catalog, left out of training volume.</summary>
     public const string WarmUp = "Warm-up";
 
-    /// <summary>Display order: upper body, arms, core, lower body, then Cardio and Warm-up.</summary>
+    /// <summary>Display order: upper body, arms, core, lower body, neck, then Cardio and Warm-up.</summary>
     public static readonly IReadOnlyList<string> All =
     [
         "Chest",
         "Lats",
         "Upper Back",
+        "Traps",
         "Lower Back",
         "Front Delts",
         "Side Delts",
@@ -33,9 +34,16 @@ public static class MuscleGroups
         "Calves",
         "Adductors",
         "Abductors",
+        "Neck",
         Cardio,
         WarmUp
     ];
+
+    /// <summary>
+    /// Groups an exercise can count towards as a secondary muscle: every real muscle
+    /// group, so not Cardio or Warm-up.
+    /// </summary>
+    public static bool IsMuscle(string group) => group != Cardio && group != WarmUp && All.Contains(group);
 
     /// <summary>The canonical spelling of <paramref name="value"/> (case-insensitive), or null if it is not a muscle group.</summary>
     public static string? Canonical(string? value) =>

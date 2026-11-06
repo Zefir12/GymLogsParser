@@ -2,6 +2,7 @@ import { computed, ref, watch } from "vue";
 import { defineStore } from "pinia";
 
 import { getDashboard } from "@/api/client";
+import { useExerciseCatalogStore } from "@/stores/exercises";
 import type {
   DashboardData,
   DashboardDayEntry,
@@ -16,6 +17,8 @@ import {
   RANGE_DAYS,
   dayNumber,
   groupOf,
+  muscleShares,
+  roundSets,
   sortGroups,
   todayIso,
   weekStart,
@@ -50,6 +53,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const exerciseId = ref<string | null>(null);
   const metric = ref<DashboardMetric>("e1rm");
 
+  /** The catalog supplies each exercise's secondary muscle groups and shares. */
+  const catalog = useExerciseCatalogStore();
+
   /** Bumped per request so a slow, older response never overwrites a newer one. */
   let requestId = 0;
 
@@ -58,7 +64,11 @@ export const useDashboardStore = defineStore("dashboard", () => {
     loading.value = true;
     error.value = null;
     try {
-      const result = await getDashboard(todayIso(), range.value);
+      // A catalog that fails to load only means no secondary shares.
+      const [result] = await Promise.all([
+        getDashboard(todayIso(), range.value),
+        catalog.ensureLoaded(),
+      ]);
       if (id === requestId) data.value = result;
     } catch (err) {
       if (id === requestId) {
@@ -119,16 +129,43 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const groupOfEntry = (entry: DashboardDayEntry) =>
     groupOf(exerciseById.value.get(entry.exerciseId));
 
-  /** Per day: working sets per group (strength) and minutes (Cardio). */
+  /** Per exercise: the groups a set counts towards, primary (share 1) first. */
+  const sharesByExercise = computed(() => {
+    const byId = new Map(catalog.definitions.map((d) => [d.id, d]));
+    return new Map(
+      (data.value?.exercises ?? []).map((e) => [
+        e.exerciseId,
+        muscleShares(e, byId.get(e.exerciseId)),
+      ]),
+    );
+  });
+
+  const sharesOf = (exerciseId: string) =>
+    sharesByExercise.value.get(exerciseId) ??
+    muscleShares(exerciseById.value.get(exerciseId), undefined);
+
+  /** How much one set of the exercise counts towards `group` (0 if not at all). */
+  const shareOf = (exerciseId: string, group: string) =>
+    sharesOf(exerciseId).find((m) => m.muscleGroup === group)?.share ?? 0;
+
+  /**
+   * Per day: working sets per group (strength) and minutes (Cardio). A set counts
+   * share × 1 towards every group of its exercise; All counts each set once.
+   */
   const groupTotalsByDay = computed(() => {
     const result = new Map<number, Map<string, number>>();
     for (const d of days.value) {
       const totals = new Map<string, number>();
       for (const e of d.entries) {
-        const g = groupOfEntry(e);
-        const v = g === CARDIO ? e.minutes : e.sets;
-        totals.set(g, (totals.get(g) ?? 0) + v);
-        if (g !== CARDIO) totals.set(ALL, (totals.get(ALL) ?? 0) + e.sets);
+        if (groupOfEntry(e) === CARDIO) {
+          totals.set(CARDIO, (totals.get(CARDIO) ?? 0) + e.minutes);
+          continue;
+        }
+        for (const m of sharesOf(e.exerciseId)) {
+          const prev = totals.get(m.muscleGroup) ?? 0;
+          totals.set(m.muscleGroup, prev + e.sets * m.share);
+        }
+        totals.set(ALL, (totals.get(ALL) ?? 0) + e.sets);
       }
       result.set(d.day, totals);
     }
@@ -141,11 +178,16 @@ export const useDashboardStore = defineStore("dashboard", () => {
     for (let day = start; day <= end; day++) {
       sum += groupTotalsByDay.value.get(day)?.get(group) ?? 0;
     }
-    return sum;
+    return roundSets(sum);
   }
 
+  /** Every group trained in the data, including those only hit as a secondary muscle. */
   const groups = computed(() =>
-    sortGroups((data.value?.exercises ?? []).map((e) => groupOf(e))),
+    sortGroups(
+      (data.value?.exercises ?? []).flatMap((e) =>
+        sharesOf(e.exerciseId).map((m) => m.muscleGroup),
+      ),
+    ),
   );
 
   const sessionsByExercise = computed(() => {
@@ -162,16 +204,26 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
   // --- filter ---
 
-  function matches(entry: DashboardDayEntry) {
-    if (exerciseId.value) return entry.exerciseId === exerciseId.value;
-    return muscle.value === ALL || groupOfEntry(entry) === muscle.value;
+  /** How much one set of the entry counts under the active filter (0 = filtered out). */
+  function weight(entry: DashboardDayEntry) {
+    if (exerciseId.value) return entry.exerciseId === exerciseId.value ? 1 : 0;
+    if (muscle.value === ALL) return 1;
+    if (muscle.value === CARDIO) return groupOfEntry(entry) === CARDIO ? 1 : 0;
+    return shareOf(entry.exerciseId, muscle.value);
   }
 
-  /** Sets matching the active filter, per training day. */
+  /** Entries of exercises that count towards the active filter at all. */
+  function matches(entry: DashboardDayEntry) {
+    return weight(entry) > 0;
+  }
+
+  /** Sets matching the active filter per training day, weighted by muscle share. */
   const filteredSetsByDay = computed(() => {
     const result = new Map<number, number>();
     for (const d of days.value) {
-      const sets = d.entries.reduce((s, e) => s + (matches(e) ? e.sets : 0), 0);
+      const sets = roundSets(
+        d.entries.reduce((s, e) => s + e.sets * weight(e), 0),
+      );
       if (sets > 0) result.set(d.day, sets);
     }
     return result;
@@ -241,8 +293,11 @@ export const useDashboardStore = defineStore("dashboard", () => {
           .slice(0, 6);
       }
     } else {
-      candidates = (data.value?.exercises ?? []).filter(
-        (e) => groupOf(e) === muscle.value,
+      // Exercises that count towards the group at all; the primary ones sort first below.
+      candidates = (data.value?.exercises ?? []).filter((e) =>
+        muscle.value === CARDIO
+          ? groupOf(e) === CARDIO
+          : shareOf(e.exerciseId, muscle.value) > 0,
       );
     }
 
@@ -262,7 +317,11 @@ export const useDashboardStore = defineStore("dashboard", () => {
         };
       })
       .sort((a, b) =>
-        muscle.value === ALL ? 0 : b.sessions - a.sessions,
+        muscle.value === ALL
+          ? 0
+          : shareOf(b.exercise.exerciseId, muscle.value) -
+              shareOf(a.exercise.exerciseId, muscle.value) ||
+            b.sessions - a.sessions,
       );
   });
 
