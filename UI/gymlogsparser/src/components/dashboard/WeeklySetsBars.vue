@@ -1,42 +1,64 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
+import MuscleTargetsModal from "@/components/dashboard/MuscleTargetsModal.vue";
 import { useDashboardStore } from "@/stores/dashboard";
-import {
-  CARDIO,
-  TARGET_MAX,
-  TARGET_MIN,
-  targetStatus,
-} from "@/utils/dashboard";
+import { useMuscleTargetsStore } from "@/stores/muscleTargets";
+import { CARDIO, formatRange, sortGroups, targetStatus } from "@/utils/dashboard";
 
 const store = useDashboardStore();
+const targets = useMuscleTargetsStore();
 
-/** Value at the right edge of the track; the 10–20 band sits inside it. */
-const SCALE_MAX = 24;
+const editing = ref(false);
 
-const band = {
-  left: `${((TARGET_MIN / SCALE_MAX) * 100).toFixed(2)}%`,
-  width: `${(((TARGET_MAX - TARGET_MIN) / SCALE_MAX) * 100).toFixed(2)}%`,
-};
+/** Smallest value at the right edge of the track; grows with the widest target range. */
+const MIN_SCALE = 24;
 
-const bars = computed(() =>
-  store.groups
-    .filter((g) => g !== CARDIO)
+const pct = (value: number, scale: number) =>
+  `${Math.min(100, (value / scale) * 100).toFixed(2)}%`;
+
+const trainedGroups = computed(() => store.groups.filter((g) => g !== CARDIO));
+
+const bars = computed(() => {
+  // Groups trained in the loaded data, plus every group whose target asks for
+  // sets (min > 0), so a body part that's never trained shows as below target.
+  const groups = sortGroups([
+    ...trainedGroups.value,
+    ...targets.targets.filter((t) => t.minSets > 0).map((t) => t.muscleGroup),
+  ]);
+
+  const scale = Math.max(
+    MIN_SCALE,
+    ...targets.targets.map((t) => Math.ceil(t.maxSets * 1.2)),
+  );
+
+  return groups
     .map((group) => {
       const value = store.groupTotal(group, store.toDay - 27, store.toDay) / 4;
-      const status = targetStatus(value);
+      const target = targets.targetOf(group);
+      const status = target ? targetStatus(value, target) : null;
       return {
         group,
         value,
         label: value.toFixed(1),
-        width: `${Math.min(100, (value / SCALE_MAX) * 100).toFixed(1)}%`,
+        width: pct(value, scale),
+        band: target
+          ? {
+              left: pct(target.minSets, scale),
+              width: pct(target.maxSets - target.minSets, scale),
+            }
+          : null,
+        range: target ? formatRange(target) : "",
+        title: target
+          ? `${group}: ${value.toFixed(1)} sets/wk, target ${formatRange(target)}`
+          : `${group}: ${value.toFixed(1)} sets/wk, no target`,
         status,
-        short: status.replace(" target", ""),
+        short: status?.replace(" target", "") ?? "",
         active: store.muscle === group,
       };
     })
-    .sort((a, b) => b.value - a.value),
-);
+    .sort((a, b) => b.value - a.value);
+});
 </script>
 
 <template>
@@ -44,14 +66,21 @@ const bars = computed(() =>
     <div class="head">
       <h2>Weekly sets per body part</h2>
       <span class="hint">
-        Average of the last 4 weeks · shaded band = {{ TARGET_MIN }}–{{
-          TARGET_MAX
-        }}
-        sets target · secondary muscles count by share · click a row to filter
+        Average of the last 4 weeks · shaded band = target range · secondary
+        muscles count by share · click a row to filter
       </span>
+      <button type="button" class="edit" @click="editing = true">
+        Edit targets
+      </button>
     </div>
 
-    <p v-if="bars.length === 0" class="hint empty">No strength sets logged yet.</p>
+    <p v-if="targets.error" class="hint notice">
+      Targets couldn't be loaded ({{ targets.error }}), so no ranges are shown.
+    </p>
+
+    <p v-if="trainedGroups.length === 0" class="hint empty">
+      No strength sets logged yet.
+    </p>
 
     <div v-else class="rows">
       <button
@@ -61,14 +90,16 @@ const bars = computed(() =>
         class="row"
         :class="{ active: bar.active }"
         :aria-pressed="bar.active"
+        :title="bar.title"
         @click="store.toggleMuscle(bar.group)"
       >
         <span class="label">{{ bar.group }}</span>
         <span class="track">
-          <span class="band" :style="band" />
+          <span v-if="bar.band" class="band" :style="bar.band" />
           <span class="fill" :style="{ width: bar.width }" />
         </span>
         <span class="value">{{ bar.label }}</span>
+        <span class="range">{{ bar.range }}</span>
         <span
           class="status"
           :class="bar.status === 'On target' ? 'good' : 'warn'"
@@ -78,6 +109,8 @@ const bars = computed(() =>
         </span>
       </button>
     </div>
+
+    <MuscleTargetsModal v-if="editing" @close="editing = false" />
   </section>
 </template>
 
@@ -110,6 +143,27 @@ h2 {
   font-size: 12px;
 }
 
+.edit {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 12px;
+
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.edit:hover {
+  border-color: var(--glass-border-strong);
+  color: var(--text-primary);
+}
+
+.notice {
+  margin: 8px 0 0;
+}
+
 .empty {
   margin: 16px 0 0;
 }
@@ -123,7 +177,7 @@ h2 {
 
 .row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 44px 92px;
+  grid-template-columns: 96px minmax(0, 1fr) 40px 40px 92px;
   align-items: center;
   gap: 12px;
   min-height: 38px;
@@ -186,6 +240,12 @@ h2 {
   font-variant-numeric: tabular-nums;
 }
 
+.range {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 .status {
   font-size: 12px;
 }
@@ -206,6 +266,10 @@ h2 {
   .row {
     grid-template-columns: 76px minmax(0, 1fr) 36px 44px;
     gap: 8px;
+  }
+
+  .range {
+    display: none;
   }
 
   .long {
