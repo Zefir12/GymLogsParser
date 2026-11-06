@@ -2,9 +2,11 @@
 import { computed } from "vue";
 
 import { useDashboardStore } from "@/stores/dashboard";
-import { ALL, CARDIO, targetStatus } from "@/utils/dashboard";
+import { useMuscleTargetsStore } from "@/stores/muscleTargets";
+import { ALL, CARDIO, formatRange, targetStatus } from "@/utils/dashboard";
 
 const store = useDashboardStore();
+const targets = useMuscleTargetsStore();
 
 const tiles = computed(() =>
   [ALL, ...store.groups].map((group) => {
@@ -21,7 +23,9 @@ const tiles = computed(() =>
     });
     const max = Math.max(...weeks) || 1;
 
-    const status = group === ALL || group === CARDIO ? null : targetStatus(current);
+    // All, Cardio and groups without a target range get no status.
+    const target = targets.targetOf(group);
+    const status = target ? targetStatus(current, target) : null;
 
     return {
       group,
@@ -29,6 +33,9 @@ const tiles = computed(() =>
       value: current.toFixed(group === CARDIO ? 0 : 1),
       unit: group === CARDIO ? "min/wk" : "sets/wk",
       status,
+      statusTitle: target
+        ? `Target ${formatRange(target)} sets/wk (secondary muscles count by share)`
+        : undefined,
       trend: `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`,
       trendUp: delta >= 0,
       spark: weeks.map((v) => `${Math.round((v / max) * 100)}%`),
@@ -55,6 +62,7 @@ const tiles = computed(() =>
           v-if="tile.status"
           class="tile-status"
           :class="tile.status === 'On target' ? 'good' : 'warn'"
+          :title="tile.statusTitle"
         >
           {{ tile.status }}
         </span>

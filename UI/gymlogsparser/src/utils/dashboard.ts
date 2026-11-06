@@ -1,10 +1,7 @@
 import type { DashboardExercise, DashboardRange } from "@/types/dashboard";
 import type { ExerciseDefinition, MuscleShare } from "@/types/exercise";
+import type { MuscleTarget } from "@/types/muscleTargets";
 import { MUSCLE_GROUPS, isMuscle } from "@/utils/muscleGroups";
-
-/** Weekly working-set target band per muscle group. */
-export const TARGET_MIN = 10;
-export const TARGET_MAX = 20;
 
 export const RANGE_DAYS: Record<DashboardRange, number> = {
   "3M": 91,
@@ -84,10 +81,23 @@ export function roundSets(value: number): number {
 
 export type TargetStatus = "Below target" | "On target" | "Above target";
 
-export function targetStatus(setsPerWeek: number): TargetStatus {
-  if (setsPerWeek < TARGET_MIN) return "Below target";
-  if (setsPerWeek > TARGET_MAX) return "Above target";
+/**
+ * Where a group's weekly sets (share-weighted) sit against its target range. Compared
+ * at one decimal, as shown, so "10.0" never reads as below a 10–20 range.
+ */
+export function targetStatus(
+  setsPerWeek: number,
+  target: Pick<MuscleTarget, "minSets" | "maxSets">,
+): TargetStatus {
+  const value = Math.round(setsPerWeek * 10) / 10;
+  if (value < target.minSets) return "Below target";
+  if (value > target.maxSets) return "Above target";
   return "On target";
+}
+
+/** "10–20" */
+export function formatRange(target: Pick<MuscleTarget, "minSets" | "maxSets">) {
+  return `${target.minSets}–${target.maxSets}`;
 }
 
 // --- dates: whole days since the epoch, in UTC so DST never shifts a day ---

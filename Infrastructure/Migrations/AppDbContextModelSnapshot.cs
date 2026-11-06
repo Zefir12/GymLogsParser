@@ -152,6 +152,23 @@ namespace Infrastructure.Migrations
                     b.ToTable("exercise_definition_muscles", (string)null);
                 });
 
+            modelBuilder.Entity("Infrastructure.Entities.MuscleTargetEntity", b =>
+                {
+                    b.Property<string>("MuscleGroup")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("MaxSets")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinSets")
+                        .HasColumnType("integer");
+
+                    b.HasKey("MuscleGroup");
+
+                    b.ToTable("muscle_targets", (string)null);
+                });
+
             modelBuilder.Entity("Infrastructure.Entities.People", b =>
                 {
                     b.Property<Guid>("Id")

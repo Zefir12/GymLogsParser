@@ -6,6 +6,7 @@ import type {
   ExerciseSummary,
 } from "@/types/exercise";
 import type { DashboardData, DashboardRange } from "@/types/dashboard";
+import type { MuscleTarget, MuscleTargetUpdate } from "@/types/muscleTargets";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
   api.post<ParseWorkoutResponse>("/ai/parse-workout", {
@@ -57,6 +58,13 @@ export const getDashboard = (to: string, range: DashboardRange) =>
   api.get<DashboardData>(
     `/dashboard?to=${encodeURIComponent(to)}&range=${encodeURIComponent(range)}`,
   );
+
+/** Every muscle group (not Cardio or Warm-up) with its weekly target range. */
+export const getMuscleTargets = () => api.get<MuscleTarget[]>("/muscle-targets");
+
+/** Stores the listed groups' ranges and returns the full list. */
+export const updateMuscleTargets = (targets: MuscleTargetUpdate[]) =>
+  api.put<MuscleTarget[]>("/muscle-targets", targets);
 
 export interface WorkoutSummary {
   id: string;
