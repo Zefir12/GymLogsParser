@@ -5,33 +5,14 @@
 # /api/*, /signin-oidc and /signout-callback-oidc to `api`.
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-gymlogs}
-      POSTGRES_USER: ${POSTGRES_USER:-gymlogs}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the stack env}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   api:
     image: registrydedic.zefirlabs.net/gymlogsparser:${API_TAG:-latest}
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     # Every Section__Key in the stack env reaches the app (overrides appsettings.json).
     env_file: .env
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__GymLogs: "${ConnectionStrings__GymLogs:-Host=postgres;Port=5432;Database=${POSTGRES_DB:-gymlogs};Username=${POSTGRES_USER:-gymlogs};Password=${POSTGRES_PASSWORD}}"
+      ConnectionStrings__GymLogs: ${ConnectionStrings__GymLogs:?set ConnectionStrings__GymLogs in the stack env}
       Database__MigrateOnStartup: ${Database__MigrateOnStartup:-true}
       Auth__Authority: ${Auth__Authority:?set Auth__Authority in the stack env}
       Auth__ClientId: ${Auth__ClientId:?set Auth__ClientId in the stack env}
@@ -53,6 +34,3 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-
-volumes:
-  pgdata:

@@ -1,13 +1,12 @@
 # Deploying on nudge
 
-The stack is `deploy/compose.yaml`, deployed by nudge as a stack from git. It runs three
-containers:
+The stack is `deploy/compose.yaml`, deployed by nudge as a stack from git. It runs two
+containers; Postgres is an external service, not part of the stack:
 
 | Service    | Image                                                 | Role |
 |------------|-------------------------------------------------------|------|
 | `ui`       | `registrydedic.zefirlabs.net/gymlogsparser-ui:${UI_TAG}` | nginx: serves the SPA, proxies the API. The only published port. |
 | `api`      | `registrydedic.zefirlabs.net/gymlogsparser:${API_TAG}`   | ASP.NET API, applies EF migrations on startup. |
-| `postgres` | `postgres:17-alpine`                                  | Database, data in the `pgdata` volume. |
 
 ## Routing
 
@@ -73,7 +72,7 @@ On the client used by `Auth__ClientId`:
 
 | Variable | Required | What it is |
 |----------|----------|------------|
-| `POSTGRES_PASSWORD` | yes | Password of the bundled postgres. Avoid `;`. |
+| `ConnectionStrings__GymLogs` | yes, secret | Npgsql connection string of the external Postgres (see [Database](#database)). |
 | `Auth__Authority` | yes | authestra issuer URL (exactly its ISSUER). |
 | `Auth__ClientId` | yes | authestra client ID. |
 | `Auth__ClientSecret` | yes, secret | authestra client secret. |
@@ -83,26 +82,49 @@ On the client used by `Auth__ClientId`:
 | `Frontend__Url` | no | Public URL of the frontend. |
 | `API_TAG`, `UI_TAG` | no | Image tags, default `latest`. |
 | `UI_BIND`, `UI_PORT` | no | Where the UI port is published, default `127.0.0.1:8085`. |
-| `POSTGRES_DB`, `POSTGRES_USER` | no | Default `gymlogs`. |
-| `ConnectionStrings__GymLogs` | no | Set to use an external database instead of the bundled one. |
 | `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
 | `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
 
 The whole stack env is also handed to the `api` container (`env_file`), so any other
 `Section__Key` override works without changing the compose file.
 
-### External database
+### Database
 
-Set `ConnectionStrings__GymLogs`. The bundled `postgres` still starts (it is small and
-idle); `POSTGRES_PASSWORD` must still be set to something.
+Postgres runs outside this stack. Before the first deploy, create an empty database and a
+user that owns it, for example:
+
+```sql
+CREATE USER gymlogs WITH PASSWORD '...';
+CREATE DATABASE gymlogs OWNER gymlogs;
+```
+
+Then set `ConnectionStrings__GymLogs`, e.g.
+`Host=db.example.lan;Port=5432;Database=gymlogs;Username=gymlogs;Password=...`
+(write a literal `$` in the password as `$$`). The API applies EF Core migrations on
+startup, so it creates the schema itself, unless `Database__MigrateOnStartup=false`
+(then apply the migrations yourself).
+
+The `api` container must be able to reach the database host:
+
+- Postgres on another machine: use its hostname or IP as `Host`.
+- Postgres on the Docker host itself: use the host's LAN address, or add
+  `extra_hosts: ["host.docker.internal:host-gateway"]` to `api` and use
+  `Host=host.docker.internal`. Postgres must listen on that interface and allow the
+  Docker network in `pg_hba.conf`.
+- Postgres in another compose stack: publish its port on the host and use the host
+  address as above, or attach `api` to that stack's network (external network) and use
+  its service name.
+
+`deploy/compose.yaml` does not include these; add the one you need to the `api` service.
 
 ## 5. First deploy
 
 1. Push both images (step 1) and set up authestra, the registry and the stack (steps 2-3).
 2. Point the reverse proxy for `gymlogs.zefirlabs.net` at `UI_BIND:UI_PORT`.
-3. Pull/deploy the stack in nudge. postgres starts, then `api` creates the schema
-   (watch its logs for the migration), then `ui`.
-4. Open https://gymlogs.zefirlabs.net, log in, and parse a workout.
+3. Create the database and its owner (see [Database](#database)).
+4. Pull/deploy the stack in nudge. `api` creates the schema (watch its logs for the
+   migration), then `ui` starts.
+5. Open https://gymlogs.zefirlabs.net, log in, and parse a workout.
 
 Updates: push new images and deploy again (nudge deploys with `--pull always`).
 
