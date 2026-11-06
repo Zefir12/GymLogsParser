@@ -74,7 +74,7 @@ onMounted(store.load);
 
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--card-gap-lg);
 
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -116,10 +116,10 @@ h1 {
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
-  padding: 20px;
+  padding: var(--card-pad);
 
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   color: var(--text-secondary);
 }
 
@@ -133,9 +133,9 @@ h1 {
   min-height: 44px;
   padding: 0 18px;
 
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--accent);
-  color: #1a0d04;
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
 }
@@ -144,7 +144,7 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 20px;
+  gap: var(--card-gap-lg);
 }
 
 .table {

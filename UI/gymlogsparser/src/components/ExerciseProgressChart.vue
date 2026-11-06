@@ -186,7 +186,7 @@ function formatValue(value: number) {
 
 <style scoped>
 .chart-card {
-  padding: 18px 20px;
+  padding: var(--card-pad);
 
   background: var(--glass-soft);
   border: 1px solid var(--glass-border);

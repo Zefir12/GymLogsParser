@@ -89,17 +89,17 @@ const tiles = computed(() =>
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-  gap: 12px;
+  gap: var(--card-gap);
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px;
+  padding: var(--card-pad-sm);
 
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card-bg);
   color: var(--text-primary);
 
@@ -112,8 +112,8 @@ const tiles = computed(() =>
 }
 
 .tile.active {
-  border-color: rgba(255, 122, 48, 0.6);
-  background: rgba(255, 122, 48, 0.07);
+  border-color: rgba(var(--accent-rgb), 0.6);
+  background: rgba(var(--accent-rgb), 0.07);
 }
 
 .tile-head {

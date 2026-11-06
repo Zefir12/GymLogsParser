@@ -65,7 +65,7 @@ defineEmits<{ (event: "update:modelValue", value: boolean): void }>();
   margin-top: 1px;
 
   border: 1px solid var(--glass-border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
 
   background: var(--bg-void);
 
@@ -90,7 +90,7 @@ defineEmits<{ (event: "update:modelValue", value: boolean): void }>();
   width: 5px;
   height: 9px;
 
-  border: solid #1a0a00;
+  border: solid var(--on-accent);
   border-width: 0 2px 2px 0;
 
   transform: rotate(45deg);

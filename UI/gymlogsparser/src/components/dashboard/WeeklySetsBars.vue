@@ -83,9 +83,9 @@ const bars = computed(() =>
 
 <style scoped>
 .card {
-  padding: 20px;
+  padding: var(--card-pad);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card-bg);
 }
 
@@ -130,7 +130,7 @@ h2 {
   padding: 0 8px;
 
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #c9ccd3;
 
@@ -142,7 +142,7 @@ h2 {
 }
 
 .row.active {
-  background: rgba(255, 122, 48, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
   color: var(--accent-text);
 }
 
@@ -155,7 +155,7 @@ h2 {
 .track {
   position: relative;
   height: 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--track);
 }
 
@@ -173,7 +173,7 @@ h2 {
   top: 0;
   bottom: 0;
   left: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--bar-idle);
 }
 

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import logoGlyph from "@/assets/brand/glyph-on-dark.svg";
+
 defineEmits<{ (event: "new-workout"): void }>();
 </script>
 
@@ -6,7 +8,7 @@ defineEmits<{ (event: "new-workout"): void }>();
   <header class="topbar">
     <div>
       <div class="brand">
-        <span class="brand-mark">G</span>
+        <img :src="logoGlyph" class="brand-mark" alt="" aria-hidden="true" />
         <span>GymLog</span>
       </div>
 
@@ -49,21 +51,9 @@ defineEmits<{ (event: "new-workout"): void }>();
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
-
-  width: 27px;
-  height: 27px;
-
-  border-radius: var(--radius-xs);
-
-  background: linear-gradient(155deg, var(--accent), #d85a1a);
-  color: #1a0a00;
-
-  font-size: 12px;
-  font-weight: 900;
-
-  box-shadow: 0 4px 14px rgba(255, 122, 48, 0.35);
+  display: block;
+  width: auto;
+  height: 20px;
 }
 
 .subtitle {

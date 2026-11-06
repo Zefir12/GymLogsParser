@@ -71,9 +71,9 @@ const rows = computed(() =>
 <style scoped>
 .card {
   min-width: 0;
-  padding: 20px;
+  padding: var(--card-pad);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card-bg);
 }
 
@@ -127,7 +127,7 @@ tbody tr {
 }
 
 tbody tr.active {
-  background: rgba(255, 122, 48, 0.07);
+  background: rgba(var(--accent-rgb), 0.07);
 }
 
 .num {

@@ -31,7 +31,7 @@ const model = defineModel<T>({ required: true });
   padding: 4px;
 
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--segment-bg);
 }
 
@@ -41,7 +41,7 @@ const model = defineModel<T>({ required: true });
   padding: 0 12px;
 
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
 

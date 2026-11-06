@@ -79,9 +79,9 @@ const weeks = computed(() => {
 
 <style scoped>
 .card {
-  padding: 20px;
+  padding: var(--card-pad);
   border: 1px solid var(--card-border);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   background: var(--card-bg);
 }
 
@@ -113,7 +113,7 @@ h2 {
 .legend .cell {
   width: 12px;
   height: 12px;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .scroller {
@@ -151,7 +151,7 @@ h2 {
   display: block;
   width: 16px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .future {

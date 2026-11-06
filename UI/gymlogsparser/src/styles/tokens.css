@@ -1,14 +1,17 @@
 /* ============================================================
    DESIGN TOKENS
-   Imported once (globally, unscoped) so every component — even
-   with `scoped` styles — can read these as inherited CSS
-   custom properties.
+   Imported once (globally, unscoped, from main.ts) so every
+   component — even with `scoped` styles — can read these as
+   inherited CSS custom properties.
+
+   Colours are built from the Log Ascent brand palette in
+   brand.css. The app is dark-only; there is no light theme.
    ============================================================ */
 
 :root {
   /* --- surface --- */
-  --bg-void: #131416;
-  --bg-base: #0a0a0d;
+  --bg-void: var(--brand-ground);
+  --bg-base: #0c0c0d; /* page, one step below the brand ground */
 
   --glass-soft: rgba(255, 255, 255, 0.025);
   --glass: rgba(255, 255, 255, 0.045);
@@ -23,18 +26,21 @@
   --shadow-glass: 0 12px 40px rgba(0, 0, 0, 0.4);
 
   /* --- text --- */
-  --text-primary: #eef0f4;
+  --text-primary: var(--brand-light);
   --text-secondary: #9a9ea8;
-  --text-tertiary: #62666f;
-  --text-quiet: #45484f;
+  --text-tertiary: var(--brand-row-4);
+  --text-quiet: var(--brand-row-3);
 
-  /* --- accent (orange — used sparingly, on primary actions
-     and active states only) --- */
-  --accent: #ff7a30;
-  --accent-strong: #ff9152;
-  --accent-soft: rgba(255, 122, 48, 0.14);
-  --accent-border: rgba(255, 122, 48, 0.4);
-  --accent-text: #ffb37a;
+  /* --- accent (brand orange — used sparingly, on primary
+     actions and active states only) --- */
+  --accent-rgb: 255, 106, 26; /* --brand-accent as r, g, b for rgba() */
+  --accent: var(--brand-accent);
+  --accent-strong: #ff8848; /* accent + 20% white, hover */
+  --accent-deep: #d95a16; /* accent + 15% black, gradient ends */
+  --accent-soft: rgba(var(--accent-rgb), 0.14);
+  --accent-border: rgba(var(--accent-rgb), 0.4);
+  --accent-text: #ffb58d;
+  --on-accent: #1a0a00; /* text and marks on an accent fill */
 
   /* --- status --- */
   --success: #86c6a3;
@@ -48,31 +54,45 @@
   --danger-border: rgba(226, 141, 156, 0.3);
 
   /* --- dashboard: cards, tracks, segmented controls --- */
-  --card-bg: #131416;
+  --card-bg: var(--brand-ground);
   --card-border: rgba(255, 255, 255, 0.08);
-  --header-bg: #0e0f12;
-  --track: #1c1d22;
-  --segment-bg: #15161a;
-  --segment-on: #2a2b31;
-  --bar-idle: #5c606b;
-  --spark-idle: #3a3c44;
+  --header-bg: var(--brand-ground);
+  --track: #1d1e22;
+  --segment-bg: #18181b;
+  --segment-on: var(--brand-row-1);
+  --bar-idle: var(--brand-row-4);
+  --spark-idle: var(--brand-row-2);
   --spark-recent: #8b8f99;
-  --spark-active: #8a3f15;
+  --spark-active: var(--heat-2);
+  --exercise-head-bg: rgba(102, 50, 23, 0.71); /* 35% accent over ground */
 
-  /* heatmap scale, rest day to most sets */
-  --heat-0: #1c1d22;
-  --heat-1: #4a2a17;
-  --heat-2: #8a3f15;
-  --heat-3: #d45f1f;
-  --heat-4: #ff8a45;
+  /* heatmap scale, rest day to most sets: brand ground
+     blended toward brand accent */
+  --heat-0: var(--track);
+  --heat-1: #4f2a17; /* 25% accent */
+  --heat-2: #8a3f18; /* 50% accent */
+  --heat-3: #cb5719; /* 78% accent */
+  --heat-4: var(--brand-accent);
 
-  /* --- radius: slightly rounder than a sharp SaaS default,
-     stopping short of full pill shapes --- */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
+  /* --- radius: tight, just off square --- */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-card: 10px; /* dashboard cards and tiles */
+  --radius-control: 7px; /* dashboard buttons, segmented controls */
+  --radius-pill: 999px;
+
+  /* --- card spacing --- */
+  --card-pad: 16px; /* main cards and panels */
+  --card-pad-sm: 12px; /* compact cards, list panels */
+  --card-pad-xs: 8px; /* nested entries inside a card */
+
+  --card-gap-sm: 8px; /* stacked cards inside a panel */
+  --card-gap: 10px; /* card grids */
+  --card-gap-md: 12px; /* two-column layouts */
+  --card-gap-lg: 16px; /* page sections */
 
   /* --- motion --- */
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
