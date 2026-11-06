@@ -5,11 +5,8 @@ TAG=latest
 PROJECT=GymLogsParser/GymLogsParser.csproj
 DOCKERFILE=GymLogsParser/Dockerfile
 CONTEXT=.
-UI_IMAGE=$(REGISTRY)/gymlogsparser-ui
-UI_TAG=$(TAG)
-UI_CONTEXT=UI/gymlogsparser
 
-.PHONY: dev run restore build-local clean build push publish publish-ui publish-all
+.PHONY: dev run restore build-local clean build push publish
 
 # Load .env if it exists.
 ifneq (,$(wildcard .env))
@@ -58,9 +55,3 @@ push:
 publish:
 	docker buildx build -f $(DOCKERFILE) -t $(IMAGE):$(TAG) --push $(CONTEXT)
 
-# Build and push the UI image (nginx serving the SPA and proxying /api)
-publish-ui:
-	docker buildx build -t $(UI_IMAGE):$(UI_TAG) --push $(UI_CONTEXT)
-
-# Both images, for a deploy
-publish-all: publish publish-ui
