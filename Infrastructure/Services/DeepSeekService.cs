@@ -16,21 +16,32 @@ using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Services;
 
-public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, ILogger<DeepSeekService> logger) : IDeepSeekService
+public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, IExerciseCatalogService exerciseCatalog, ILogger<DeepSeekService> logger) : IDeepSeekService
 {
     private readonly DeepSeekOptions _options = options.Value;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private static readonly IReadOnlyDictionary<string, ExerciseDefinition> CatalogById = ExerciseCatalog.All.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-    private static readonly string SystemPrompt = SystemPromptTemplate.Replace("{{EXERCISE_ID_GROUPS}}", BuildExerciseIdGroups());
 
-    private static string BuildExerciseIdGroups()
+    /// <summary>
+    /// The system prompt with the current catalog's IDs and aliases filled in.
+    /// Built per call from the stored catalog, so an exercise added in the UI is
+    /// offered to the model on the very next parse.
+    /// </summary>
+    private static string BuildSystemPrompt(ExerciseCatalogSnapshot catalog) =>
+        SystemPromptTemplate.Replace("{{EXERCISE_ID_GROUPS}}", BuildExerciseIdGroups(catalog));
+
+    private static string BuildExerciseIdGroups(ExerciseCatalogSnapshot catalog)
     {
-        var groups = ExerciseCatalog.All
-            .GroupBy(e => e.MuscleGroup)
-            .Select(g => $"{g.Key}: {string.Join(", ", g.Select(e => e.Id))}");
+        var groups = catalog.All
+            .GroupBy(e => e.MuscleGroup, StringComparer.OrdinalIgnoreCase)
+            .Select(g => $"{g.Key}: {string.Join(", ", g.Select(FormatEntry))}");
 
         return string.Join("\n", groups);
     }
+
+    private static string FormatEntry(ExerciseDefinition exercise) =>
+        exercise.Aliases.Count == 0
+            ? exercise.Id
+            : $"{exercise.Id} [aliases: {string.Join(", ", exercise.Aliases.Select(a => $"\"{a}\""))}]";
     
     
     private const string SystemPromptTemplate = """
@@ -130,6 +141,11 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
 
     ALLOWED EXERCISE IDS (grouped by muscle group; pick one per exercise)
     -----------------------------------------------------------------
+    An entry written as  some-id [aliases: "x", "y"]  lists names the user
+    writes for that exercise. A log term matching an alias (ignoring case,
+    Polish diacritics and small typos) maps to that ID, and an alias match
+    wins over the general shorthand above.
+
     {{EXERCISE_ID_GROUPS}}
 
     CARDIO
@@ -386,7 +402,11 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         var bodyweightKg = workoutDate.HasValue ? BodyweightHistory.GetInterpolated(workoutDate.Value) : (double?)null;
         logger.LogInformation("Pre-cache setup: {Ms}ms", sw.ElapsedMilliseconds);
         
-        var cacheKey = $"workout-ai:{ComputeHash(normalized)}:{barbellWeightsArePerSide}";
+        var catalog = await exerciseCatalog.GetAsync(cancellationToken);
+
+        // The catalog version is part of the key: after an exercise is added or
+        // edited, the same log is parsed again against the new list.
+        var cacheKey = $"workout-ai:{ComputeHash(normalized)}:{barbellWeightsArePerSide}:{catalog.Version}";
         if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached)) { return cached!; }
         logger.LogInformation("Cache check: {Ms}ms", sw.ElapsedMilliseconds);
         
@@ -413,7 +433,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
             },
             Messages =
                 [
-                    new DeepSeekMessage { Role = "system", Content = SystemPrompt },
+                    new DeepSeekMessage { Role = "system", Content = BuildSystemPrompt(catalog) },
                     new DeepSeekMessage
                     {
                         Role = "user",
@@ -449,7 +469,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         var workout = JsonSerializer.Deserialize<WorkoutLog>(content, JsonOptions);
         if (workout is null) { throw new InvalidOperationException("DeepSeek returned JSON that could not be parsed as WorkoutLog."); }
 
-        HydrateFromCatalog(workout);
+        HydrateFromCatalog(workout, catalog);
 
         var usage = deepSeekResponse.Usage;
 
@@ -473,17 +493,16 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
     /// position. Keeping this server-side is what lets the prompt above skip
     /// these fields and cuts a large share of the completion tokens.
     /// </summary>
-    private void HydrateFromCatalog(WorkoutLog workout)
+    private void HydrateFromCatalog(WorkoutLog workout, ExerciseCatalogSnapshot catalog)
     {
         foreach (var exercise in workout.Exercises)
         {
-            if (CatalogById.TryGetValue(exercise.ExerciseId, out var catalogEntry))
+            if (catalog.ById.TryGetValue(exercise.ExerciseId, out var catalogEntry))
             {
+                exercise.ExerciseId = catalogEntry.Id;
                 exercise.Name = catalogEntry.Name;
                 exercise.MuscleGroup = catalogEntry.MuscleGroup;
-                exercise.Category = string.Equals(catalogEntry.Category, "Cardio", StringComparison.OrdinalIgnoreCase)
-                    ? ExerciseCategory.Cardio
-                    : ExerciseCategory.Strength;
+                exercise.Category = catalogEntry.Category;
             }
             else
             {

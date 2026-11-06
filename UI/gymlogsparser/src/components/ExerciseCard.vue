@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import { useWorkoutStore } from "@/stores/workout";
-import { exercises } from "@/data/exercises";
+import { useExerciseCatalogStore } from "@/stores/exercises";
 
 import StrengthSetTable from "./StrengthSetTable.vue";
 import CardioEntryEditor from "./CardioEntryEditor.vue";
@@ -10,6 +10,11 @@ import CardioEntryEditor from "./CardioEntryEditor.vue";
 const props = defineProps<{ exercise: any; index: number }>();
 
 const store = useWorkoutStore();
+const catalog = useExerciseCatalogStore();
+
+const exercises = computed(() => catalog.definitions);
+
+onMounted(() => catalog.ensureLoaded());
 
 const exerciseSearch = ref("");
 const exerciseMenuOpen = ref(false);
@@ -18,24 +23,25 @@ const filteredExercises = computed(() => {
   const query = exerciseSearch.value.trim().toLowerCase();
 
   if (!query) {
-    return exercises;
+    return exercises.value;
   }
 
-  return exercises.filter((exercise) => {
+  return exercises.value.filter((exercise) => {
     return (
       exercise.name.toLowerCase().includes(query) ||
       exercise.category.toLowerCase().includes(query) ||
-      exercise.muscleGroup?.toLowerCase().includes(query)
+      exercise.muscleGroup?.toLowerCase().includes(query) ||
+      exercise.aliases.some((alias) => alias.toLowerCase().includes(query))
     );
   });
 });
 
 const selectedExercise = computed(() => {
-  return exercises.find((item) => item.id === props.exercise.exerciseId);
+  return catalog.byId(props.exercise.exerciseId);
 });
 
 function exerciseChanged(exerciseId: string) {
-  const definition = exercises.find((item) => item.id === exerciseId);
+  const definition = catalog.byId(exerciseId);
 
   if (!definition) {
     return;
@@ -107,7 +113,9 @@ function selectExercise(exerciseId: string) {
             v-model="exerciseSearch"
             class="exercise-select"
             type="text"
-            :placeholder="selectedExercise?.name || 'Select exercise'"
+            :placeholder="
+              selectedExercise?.name || exercise.name || 'Select exercise'
+            "
             @focus="openExerciseMenu"
             @blur="closeExerciseMenu"
           />
