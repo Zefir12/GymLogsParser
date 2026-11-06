@@ -35,5 +35,5 @@ export interface DashboardDayEntry {
   pr: boolean;
 }
 
-export type DashboardRange = "3M" | "6M" | "1Y";
+export type DashboardRange = "3M" | "6M" | "1Y" | "5Y" | "10Y";
 export type DashboardMetric = "e1rm" | "top" | "volume";
