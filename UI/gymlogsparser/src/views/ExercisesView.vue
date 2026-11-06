@@ -2,8 +2,12 @@
 import { computed, onMounted, ref } from "vue";
 
 import { useExerciseCatalogStore } from "@/stores/exercises";
-import type { ExerciseCategory, ExerciseDefinition } from "@/types/exercise";
-import { muscleGroupOptions } from "@/utils/muscleGroups";
+import type {
+  ExerciseCategory,
+  ExerciseDefinition,
+  MuscleShare,
+} from "@/types/exercise";
+import { MUSCLES, isMuscle, muscleGroupOptions } from "@/utils/muscleGroups";
 
 const catalog = useExerciseCatalogStore();
 
@@ -13,6 +17,8 @@ const search = ref("");
 const editingId = ref<string | null>(null);
 const form = ref<ExerciseDefinition>(emptyForm());
 const aliasInput = ref("");
+/** Secondary muscle groups being edited (the primary is form.muscleGroup, share 1). */
+const secondary = ref<MuscleShare[]>([]);
 
 const saving = ref(false);
 const formError = ref<string | null>(null);
@@ -26,12 +32,60 @@ function emptyForm(): ExerciseDefinition {
     muscleGroup: "",
     barbell: false,
     aliases: [],
+    muscles: [],
   };
 }
+
+const SHARE_STEP = 0.05;
 
 const categories: ExerciseCategory[] = ["Strength", "Cardio"];
 
 const muscleGroups = computed(() => muscleGroupOptions(form.value.muscleGroup));
+
+/** Cardio and warm-up entries only count towards their own group. */
+const canHaveSecondary = computed(
+  () => form.value.category === "Strength" && isMuscle(form.value.muscleGroup),
+);
+
+/** Choices for one secondary row: muscles other than the primary and the other rows. */
+function secondaryOptions(index: number): string[] {
+  const taken = new Set(
+    secondary.value
+      .filter((_, i) => i !== index)
+      .map((m) => m.muscleGroup),
+  );
+  taken.add(form.value.muscleGroup);
+  const current = secondary.value[index]?.muscleGroup;
+  const list = MUSCLES.filter((g) => !taken.has(g));
+  // An old value outside the list still shows, so opening the editor never drops it.
+  if (current && !list.includes(current)) list.push(current);
+  return list;
+}
+
+function addSecondary() {
+  const group = secondaryOptions(secondary.value.length)[0] ?? "";
+  secondary.value.push({ muscleGroup: group, share: 0.5 });
+}
+
+function removeSecondary(index: number) {
+  secondary.value.splice(index, 1);
+}
+
+/** Rounds to the 0.05 grid and keeps the share within 0.05–1. */
+function clampShare(m: MuscleShare) {
+  const value = Number(m.share);
+  const steps = Math.round((Number.isFinite(value) ? value : 0) / SHARE_STEP);
+  const snapped = steps * SHARE_STEP;
+  m.share = Math.min(1, Math.max(SHARE_STEP, Number(snapped.toFixed(2))));
+}
+
+/** "Triceps 0.5 · Front Delts 0.5" for the catalog list. */
+function secondaryLabel(d: ExerciseDefinition): string {
+  return (d.muscles ?? [])
+    .filter((m) => m.muscleGroup !== d.muscleGroup)
+    .map((m) => `${m.muscleGroup} ${m.share}`)
+    .join(" · ");
+}
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -97,6 +151,9 @@ function removeAlias(index: number) {
 function startEdit(definition: ExerciseDefinition) {
   editingId.value = definition.id;
   form.value = { ...definition, aliases: [...definition.aliases] };
+  secondary.value = (definition.muscles ?? [])
+    .filter((m) => m.muscleGroup !== definition.muscleGroup)
+    .map((m) => ({ ...m }));
   aliasInput.value = "";
   formError.value = null;
   notice.value = null;
@@ -106,8 +163,22 @@ function startEdit(definition: ExerciseDefinition) {
 function resetForm() {
   editingId.value = null;
   form.value = emptyForm();
+  secondary.value = [];
   aliasInput.value = "";
   formError.value = null;
+}
+
+/** The form as sent: primary at 1, then the secondary rows that apply. */
+function payload(): ExerciseDefinition {
+  const primary = form.value.muscleGroup;
+  const rows = canHaveSecondary.value
+    ? secondary.value.filter((m) => m.muscleGroup && m.muscleGroup !== primary)
+    : [];
+  rows.forEach(clampShare);
+  return {
+    ...form.value,
+    muscles: [{ muscleGroup: primary, share: 1 }, ...rows],
+  };
 }
 
 async function save() {
@@ -120,10 +191,10 @@ async function save() {
 
   try {
     if (editingId.value) {
-      const updated = await catalog.update(editingId.value, form.value);
+      const updated = await catalog.update(editingId.value, payload());
       notice.value = `Saved "${updated.name}".`;
     } else {
-      const created = await catalog.create(form.value);
+      const created = await catalog.create(payload());
       notice.value = `Added "${created.name}" (${created.id}).`;
     }
     resetForm();
@@ -191,6 +262,56 @@ onMounted(() => catalog.reload());
             <option v-for="g in muscleGroups" :key="g" :value="g">{{ g }}</option>
           </select>
         </label>
+      </div>
+
+      <div v-if="canHaveSecondary" class="field">
+        <span>Also counts towards</span>
+        <p class="field-hint">
+          Each set adds its share to that muscle group's weekly sets, e.g. bench
+          press: Triceps 0.5, Front Delts 0.5. {{ form.muscleGroup }} counts 1.
+        </p>
+        <div
+          v-for="(m, i) in secondary"
+          :key="i"
+          class="share-row"
+        >
+          <select
+            v-model="m.muscleGroup"
+            :aria-label="`Muscle group ${i + 1}`"
+          >
+            <option v-for="g in secondaryOptions(i)" :key="g" :value="g">
+              {{ g }}
+            </option>
+          </select>
+          <input
+            v-model.number="m.share"
+            type="number"
+            min="0.05"
+            max="1"
+            step="0.05"
+            inputmode="decimal"
+            :aria-label="`Share of ${m.muscleGroup || 'muscle group'}`"
+            @change="clampShare(m)"
+          />
+          <button
+            type="button"
+            class="button"
+            :title="`Remove ${m.muscleGroup}`"
+            @click="removeSecondary(i)"
+          >
+            Remove
+          </button>
+        </div>
+        <div>
+          <button
+            type="button"
+            class="button"
+            :disabled="secondaryOptions(secondary.length).length === 0"
+            @click="addSecondary"
+          >
+            Add muscle group
+          </button>
+        </div>
       </div>
 
       <label class="checkbox">
@@ -286,6 +407,7 @@ onMounted(() => catalog.reload());
             <div class="row-meta">
               <span class="mono">{{ d.id }}</span>
               <span>· {{ d.muscleGroup }}</span>
+              <span v-if="secondaryLabel(d)">· {{ secondaryLabel(d) }}</span>
             </div>
             <div v-if="d.aliases.length > 0" class="row-aliases">
               <span v-for="a in d.aliases" :key="a" class="chip small">
@@ -382,6 +504,19 @@ onMounted(() => catalog.reload());
 
 .mono {
   font-family: "JetBrains Mono", monospace;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .checkbox {

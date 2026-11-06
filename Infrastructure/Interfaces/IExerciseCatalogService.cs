@@ -14,7 +14,7 @@ public interface IExerciseCatalogService
     /// <summary>Adds a new definition. The caller has validated it and checked the ID is free.</summary>
     Task<ExerciseDefinition> CreateAsync(ExerciseDefinition definition, CancellationToken cancellationToken = default);
 
-    /// <summary>Replaces name, category, muscle group, barbell and aliases. Null if the ID doesn't exist.</summary>
+    /// <summary>Replaces name, category, muscle group, barbell, aliases and secondary muscles. Null if the ID doesn't exist.</summary>
     Task<ExerciseDefinition?> UpdateAsync(string id, ExerciseDefinition definition, CancellationToken cancellationToken = default);
 }
 

@@ -51,7 +51,8 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
     }
 
     /// <summary>
-    /// Updates an exercise's name, category, muscle group, barbell flag and aliases.
+    /// Updates an exercise's name, category, muscle group, barbell flag, aliases and
+    /// muscle shares.
     /// The ID never changes: logged workouts refer to it.
     /// </summary>
     [HttpPut("{id}")]
@@ -72,20 +73,34 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
         return updated is null ? NotFound() : Ok(updated);
     }
 
-    private static ExerciseDefinition Normalize(ExerciseDefinition request) => new()
+    private static ExerciseDefinition Normalize(ExerciseDefinition request)
     {
-        Id = (request.Id ?? string.Empty).Trim().ToLowerInvariant(),
-        Name = CollapseWhitespace(request.Name),
-        Category = request.Category,
-        // Canonical spelling when it is a known group; otherwise kept as typed so Validate can reject it.
-        MuscleGroup = MuscleGroups.Canonical(CollapseWhitespace(request.MuscleGroup)) ?? CollapseWhitespace(request.MuscleGroup),
-        Barbell = request.Barbell,
-        Aliases = (request.Aliases ?? [])
-            .Select(CollapseWhitespace)
-            .Where(a => a.Length > 0)
-            .DistinctBy(a => a, StringComparer.OrdinalIgnoreCase)
-            .ToList()
-    };
+        var muscleGroup = CanonicalOrTyped(request.MuscleGroup);
+
+        return new ExerciseDefinition
+        {
+            Id = (request.Id ?? string.Empty).Trim().ToLowerInvariant(),
+            Name = CollapseWhitespace(request.Name),
+            Category = request.Category,
+            MuscleGroup = muscleGroup,
+            Barbell = request.Barbell,
+            Aliases = (request.Aliases ?? [])
+                .Select(CollapseWhitespace)
+                .Where(a => a.Length > 0)
+                .DistinctBy(a => a, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            // The primary always counts 1, so an entry for it is dropped; Validate checks the rest.
+            Muscles = (request.Muscles ?? [])
+                .Where(m => m is not null)
+                .Select(m => new MuscleShare { MuscleGroup = CanonicalOrTyped(m.MuscleGroup), Share = Math.Round(m.Share, 2) })
+                .Where(m => m.MuscleGroup.Length > 0 && m.MuscleGroup != muscleGroup)
+                .ToList()
+        };
+    }
+
+    /// <summary>Canonical spelling when it is a known group; otherwise kept as typed so Validate can reject it.</summary>
+    private static string CanonicalOrTyped(string? group) =>
+        MuscleGroups.Canonical(CollapseWhitespace(group)) ?? CollapseWhitespace(group);
 
     private static string? Validate(ExerciseDefinition definition, ExerciseCatalogSnapshot snapshot, string? existingId)
     {
@@ -94,6 +109,9 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
         if (definition.MuscleGroup.Length == 0) return "Muscle group is required.";
         if (!MuscleGroups.All.Contains(definition.MuscleGroup)) return $"Muscle group must be one of: {string.Join(", ", MuscleGroups.All)}.";
         if (!Enum.IsDefined(definition.Category)) return "Category must be Strength or Cardio.";
+
+        var musclesError = ValidateMuscles(definition);
+        if (musclesError is not null) return musclesError;
 
         if (definition.Id.Length is 0 or > 100 || !IdPattern().IsMatch(definition.Id))
         {
@@ -115,6 +133,31 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
                  e.Aliases.Contains(alias, StringComparer.OrdinalIgnoreCase)));
 
             if (clash is not null) return $"Alias \"{alias}\" already names \"{clash.Name}\".";
+        }
+
+        return null;
+    }
+
+    /// <summary>Secondary muscles (the primary was already dropped by Normalize).</summary>
+    private static string? ValidateMuscles(ExerciseDefinition definition)
+    {
+        if (definition.Muscles.Count == 0) return null;
+
+        if (definition.Category == ExerciseCategory.Cardio || !MuscleGroups.IsMuscle(definition.MuscleGroup))
+        {
+            return "Cardio and warm-up exercises can't count towards other muscle groups.";
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var muscle in definition.Muscles)
+        {
+            if (!MuscleGroups.IsMuscle(muscle.MuscleGroup))
+            {
+                return $"\"{muscle.MuscleGroup}\" can't be a secondary muscle group. Use one of: {string.Join(", ", MuscleGroups.All.Where(MuscleGroups.IsMuscle))}.";
+            }
+
+            if (!seen.Add(muscle.MuscleGroup)) return $"{muscle.MuscleGroup} is listed more than once.";
+            if (muscle.Share is <= 0m or > 1m) return $"The share of {muscle.MuscleGroup} must be more than 0 and at most 1.";
         }
 
         return null;

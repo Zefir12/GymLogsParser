@@ -14,7 +14,15 @@ public sealed class ExerciseDefinition
 
     public ExerciseCategory Category { get; set; }
 
+    /// <summary>The primary muscle group: counts with share 1.</summary>
     public string MuscleGroup { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Every muscle group a set of this exercise counts towards, primary first (always
+    /// share 1), then the secondary ones by share. On writes the primary's entry is
+    /// ignored: it always follows <see cref="MuscleGroup"/>.
+    /// </summary>
+    public List<MuscleShare> Muscles { get; set; } = [];
 
     /// <summary>True when the per-side barbell conversion applies.</summary>
     public bool Barbell { get; set; }

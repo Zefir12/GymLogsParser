@@ -47,7 +47,7 @@ const bars = computed(() =>
         Average of the last 4 weeks · shaded band = {{ TARGET_MIN }}–{{
           TARGET_MAX
         }}
-        sets target · click a row to filter
+        sets target · secondary muscles count by share · click a row to filter
       </span>
     </div>
 

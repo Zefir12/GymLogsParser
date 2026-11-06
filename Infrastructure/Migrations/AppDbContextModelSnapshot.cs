@@ -133,6 +133,25 @@ namespace Infrastructure.Migrations
                     b.ToTable("exercise_definitions", (string)null);
                 });
 
+            modelBuilder.Entity("Infrastructure.Entities.ExerciseDefinitionMuscleEntity", b =>
+                {
+                    b.Property<string>("ExerciseDefinitionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MuscleGroup")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("Share")
+                        .HasPrecision(3, 2)
+                        .HasColumnType("numeric(3,2)");
+
+                    b.HasKey("ExerciseDefinitionId", "MuscleGroup");
+
+                    b.ToTable("exercise_definition_muscles", (string)null);
+                });
+
             modelBuilder.Entity("Infrastructure.Entities.People", b =>
                 {
                     b.Property<Guid>("Id")
@@ -243,6 +262,15 @@ namespace Infrastructure.Migrations
                     b.Navigation("Workout");
                 });
 
+            modelBuilder.Entity("Infrastructure.Entities.ExerciseDefinitionMuscleEntity", b =>
+                {
+                    b.HasOne("Infrastructure.Entities.ExerciseDefinitionEntity", null)
+                        .WithMany("Muscles")
+                        .HasForeignKey("ExerciseDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Infrastructure.Entities.People", b =>
                 {
                     b.HasOne("Infrastructure.Entities.Workout", "Workout")
@@ -270,6 +298,11 @@ namespace Infrastructure.Migrations
                     b.Navigation("Cardio");
 
                     b.Navigation("Sets");
+                });
+
+            modelBuilder.Entity("Infrastructure.Entities.ExerciseDefinitionEntity", b =>
+                {
+                    b.Navigation("Muscles");
                 });
 
             modelBuilder.Entity("Infrastructure.Entities.Workout", b =>

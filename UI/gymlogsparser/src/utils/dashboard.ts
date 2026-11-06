@@ -1,5 +1,6 @@
 import type { DashboardExercise, DashboardRange } from "@/types/dashboard";
-import { MUSCLE_GROUPS } from "@/utils/muscleGroups";
+import type { ExerciseDefinition, MuscleShare } from "@/types/exercise";
+import { MUSCLE_GROUPS, isMuscle } from "@/utils/muscleGroups";
 
 /** Weekly working-set target band per muscle group. */
 export const TARGET_MIN = 10;
@@ -55,6 +56,30 @@ export function groupOf(exercise: DashboardExercise | undefined): string {
   if (!exercise) return "Other";
   if (exercise.category === "Cardio") return CARDIO;
   return exercise.muscleGroup || "Other";
+}
+
+/**
+ * The groups one set of `exercise` counts towards: its logged group at share 1, then
+ * the secondary groups of its catalog entry (e.g. bench press: Chest 1, Triceps 0.5,
+ * Front Delts 0.5). Cardio, and exercises not in the catalog, only count their own group.
+ */
+export function muscleShares(
+  exercise: DashboardExercise | undefined,
+  definition: ExerciseDefinition | undefined,
+): MuscleShare[] {
+  const primary = groupOf(exercise);
+  if (primary === CARDIO || definition?.category !== "Strength") {
+    return [{ muscleGroup: primary, share: 1 }];
+  }
+  const secondary = (definition.muscles ?? []).filter(
+    (m) => m.muscleGroup !== primary && isMuscle(m.muscleGroup) && m.share > 0,
+  );
+  return [{ muscleGroup: primary, share: 1 }, ...secondary];
+}
+
+/** Rounds away float noise from summing fractional sets (0.3 + 0.3 + 0.3). */
+export function roundSets(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 export type TargetStatus = "Below target" | "On target" | "Above target";
