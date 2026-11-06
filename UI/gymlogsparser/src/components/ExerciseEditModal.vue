@@ -10,6 +10,7 @@ import {
 
 import { useExerciseCatalogStore } from "@/stores/exercises";
 import type { ExerciseDefinition } from "@/types/exercise";
+import { muscleGroupOptions } from "@/utils/muscleGroups";
 import type {
   CardioEntry,
   ExerciseCategory,
@@ -48,6 +49,8 @@ const isDirty = computed(
 );
 
 const selectedDefinition = computed(() => catalog.byId(draft.value.exerciseId));
+
+const muscleGroupChoices = computed(() => muscleGroupOptions(draft.value.muscleGroup));
 
 /** A stored exercise whose ID is not (or no longer) in the catalog. */
 const isOffCatalog = computed(
@@ -732,11 +735,12 @@ const titleId = `exercise-dialog-title-${Math.random().toString(36).slice(2, 9)}
           <section class="block block--row">
             <label class="field field--grow">
               <span>Partia mięśniowa</span>
-              <input
-                v-model="draft.muscleGroup"
-                type="text"
-                placeholder="np. Klatka"
-              />
+              <select v-model="draft.muscleGroup">
+                <option :value="null">—</option>
+                <option v-for="g in muscleGroupChoices" :key="g" :value="g">
+                  {{ g }}
+                </option>
+              </select>
             </label>
           </section>
 
@@ -1419,6 +1423,7 @@ kbd {
 
 .field input,
 .field textarea,
+.field select,
 .set input {
   width: 100%;
   min-width: 0;
@@ -1442,12 +1447,14 @@ kbd {
 
 .field input:hover,
 .field textarea:hover,
+.field select:hover,
 .set input:hover {
   border-color: var(--border-strong);
 }
 
 .field input:focus-visible,
 .field textarea:focus-visible,
+.field select:focus-visible,
 .set input:focus-visible {
   outline: 2px solid var(--accent-border);
   outline-offset: 1px;
@@ -1790,6 +1797,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
   .field input,
   .field textarea,
+  .field select,
   .picker__search input {
     font-size: 16px;
   }

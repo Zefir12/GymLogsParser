@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 
 import { useWorkoutStore } from "@/stores/workout";
 import { useExerciseCatalogStore } from "@/stores/exercises";
+import { muscleGroupOptions } from "@/utils/muscleGroups";
 
 import StrengthSetTable from "./StrengthSetTable.vue";
 import CardioEntryEditor from "./CardioEntryEditor.vue";
@@ -13,6 +14,8 @@ const store = useWorkoutStore();
 const catalog = useExerciseCatalogStore();
 
 const exercises = computed(() => catalog.definitions);
+
+const muscleGroups = computed(() => muscleGroupOptions(props.exercise.muscleGroup));
 
 onMounted(() => catalog.ensureLoaded());
 
@@ -99,12 +102,14 @@ function selectExercise(exerciseId: string) {
           {{ exercise.category }}
         </span>
 
-        <input
+        <select
           v-model="exercise.muscleGroup"
           class="muscle-input"
-          type="text"
-          placeholder="Muscle group"
-        />
+          aria-label="Muscle group"
+        >
+          <option :value="null">Muscle group</option>
+          <option v-for="g in muscleGroups" :key="g" :value="g">{{ g }}</option>
+        </select>
       </div>
 
       <div class="exercise-title">
@@ -331,7 +336,8 @@ function selectExercise(exerciseId: string) {
 }
 
 .muscle-input {
-  width: 50px;
+  width: auto;
+  max-width: 90px;
   border: 0;
   outline: 0;
   background: transparent;

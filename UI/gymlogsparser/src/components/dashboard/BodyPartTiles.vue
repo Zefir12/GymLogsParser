@@ -87,7 +87,7 @@ const tiles = computed(() =>
 <style scoped>
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr));
   gap: var(--card-gap);
 }
 
