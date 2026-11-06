@@ -6,12 +6,15 @@ import { useDashboardStore } from "@/stores/dashboard";
 import type { DashboardMetric } from "@/types/dashboard";
 import {
   CARDIO,
+  dayDate,
   formatDay,
   formatKg,
   formatNumber,
   monthName,
   nextMonthStart,
+  nextYearStart,
   signed,
+  YEAR_TICK_RANGES,
 } from "@/utils/dashboard";
 
 const store = useDashboardStore();
@@ -71,13 +74,22 @@ const chart = computed(() => {
   }));
 
   const xTicks: { left: string; label: string }[] = [];
-  for (
-    let day = nextMonthStart(t0), i = 0;
-    day <= t1;
-    day = nextMonthStart(day), i++
-  ) {
-    if (store.range === "1Y" && i % 2 === 1) continue;
-    xTicks.push({ left: `${(x(day) / 10).toFixed(2)}%`, label: monthName(day) });
+  if (YEAR_TICK_RANGES.includes(store.range)) {
+    for (let day = nextYearStart(t0); day <= t1; day = nextYearStart(day)) {
+      xTicks.push({
+        left: `${(x(day) / 10).toFixed(2)}%`,
+        label: String(dayDate(day).getUTCFullYear()),
+      });
+    }
+  } else {
+    for (
+      let day = nextMonthStart(t0), i = 0;
+      day <= t1;
+      day = nextMonthStart(day), i++
+    ) {
+      if (store.range === "1Y" && i % 2 === 1) continue;
+      xTicks.push({ left: `${(x(day) / 10).toFixed(2)}%`, label: monthName(day) });
+    }
   }
 
   const first = values[0];
