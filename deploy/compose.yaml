@@ -6,7 +6,9 @@
 
 services:
   api:
-    image: registrydedic.zefirlabs.net/gymlogsparser:${API_TAG:-latest}
+    # CI deploys by digest through nudge's deployment, which sets API_IMAGE to
+    # registrydedic.zefirlabs.net/gymlogsparser@sha256:... (deploy/README.md, CI).
+    image: ${API_IMAGE:-registrydedic.zefirlabs.net/gymlogsparser:latest}
     restart: unless-stopped
     ports:
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8085}:8080"

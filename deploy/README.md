@@ -6,7 +6,7 @@ built and hosted by Cloudflare Pages on every push to `main`:
 
 | Part     | Where | Role |
 |----------|-------|------|
-| `api`    | nudge, `registrydedic.zefirlabs.net/gymlogsparser:${API_TAG}` | ASP.NET API and OIDC login, applies EF migrations on startup. Published on `API_BIND:API_PORT`. |
+| `api`    | nudge, `${API_IMAGE}`: `registrydedic.zefirlabs.net/gymlogsparser@<digest>`, set by CI | ASP.NET API and OIDC login, applies EF migrations on startup. Published on `API_BIND:API_PORT`. |
 | frontend | Cloudflare Pages | The SPA. Calls the API cross-origin with the session cookie. |
 
 The examples below use `https://gymlogs.zefirlabs.net` for the Pages site and
@@ -52,19 +52,21 @@ API allows credentials for those origins only).
 
 Forgejo Actions builds and pushes the API image (see [CI](#ci) below):
 
-| Push to   | Tags pushed                | nudge `API_TAG` |
-|-----------|----------------------------|-----------------|
-| `main`    | `latest`, `main-<sha>`     | `latest`        |
-| `develop` | `develop`, `develop-<sha>` | `develop`       |
+| Push to   | Tags pushed                | Deployed |
+|-----------|----------------------------|----------|
+| `main`    | `latest`, `main-<sha>`     | to production by CI, by digest (see [CI](#ci)) |
+| `develop` | `develop`, `develop-<sha>` | no (there is no staging stack) |
 
-`<sha>` is the commit's first 12 hex characters; set `API_TAG` to such a tag to pin a
-build.
+`<sha>` is the commit's first 12 hex characters. CI deploys by setting `API_IMAGE` to the
+pushed image's digest; without `API_IMAGE` the stack runs `:latest`. To pin a build by
+hand, set `API_IMAGE` to `registrydedic.zefirlabs.net/gymlogsparser:main-<sha>` (or a
+digest); the next CI deploy replaces it.
 
 By hand instead, from the repo root, logged in to `registrydedic.zefirlabs.net`:
 
 ```sh
 make publish              # tag latest
-make publish TAG=1.2.0    # or a fixed tag; then set API_TAG to 1.2.0
+make publish TAG=1.2.0    # or a fixed tag; then set API_IMAGE to registrydedic.zefirlabs.net/gymlogsparser:1.2.0
 ```
 
 ## 2. authestra client
@@ -91,6 +93,14 @@ On the client used by `Auth__ClientId`:
    - auth: `token`, with a Forgejo access token that can read this private repo
      (`read:repository`)
 3. **Stack env**: set the variables below. Secrets live only here, never in git.
+4. **Deployment** (on the stack: Deployments, New), for CI (see [CI](#ci)):
+   - name: e.g. `gym-logs-parser` (this is the `NUDGE_DEPLOYMENT` variable)
+   - variables deploys may set: `API_IMAGE`, nothing else
+   - health checks (Settings, Health checks): wait for healthy on (e.g. 120 s, covers the
+     migrations), a stability window (e.g. 30 s) and roll back when a check fails on.
+     `api` has no compose healthcheck, so "healthy" means running; the stability window
+     catches a crash loop (bad config, failed migration). Images are pinned by digest,
+     so a rollback redeploys exactly the previous image.
 
 ## 4. Variables
 
@@ -106,7 +116,7 @@ On the client used by `Auth__ClientId`:
 | `DeepSeek__ApiKey` | yes, secret | DeepSeek API key. |
 | `Frontend__Cors` | yes | The Pages origin, e.g. `https://gymlogs.zefirlabs.net` (comma-separated if several). |
 | `Frontend__Url` | no | Not read by the API today; keep it equal to `Auth__FrontendUrl`. |
-| `API_TAG` | no | Image tag, default `latest`. |
+| `API_IMAGE` | no, set by CI | Full image reference, default `registrydedic.zefirlabs.net/gymlogsparser:latest`. nudge's deployment sets it to `...@sha256:<digest>` on every CI deploy. Replaces `API_TAG`, which the stack no longer reads. |
 | `API_BIND`, `API_PORT` | no | Where the API port is published, default `127.0.0.1:8085`. |
 | `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
 | `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
@@ -155,7 +165,8 @@ The `api` container must be able to reach the database host:
    and a custom domain on the same site, then redeploy Pages.
 6. Open the Pages site, log in, and parse a workout.
 
-Updates: push a new image and deploy again (nudge deploys with `--pull always`).
+Updates: merge to `main`; CI pushes the image and deploys it (see [CI](#ci)). By hand:
+push a new image and deploy again (nudge deploys with `--pull always`).
 
 ## CI
 
@@ -165,8 +176,21 @@ Docker socket). The frontend is not built here; Cloudflare Pages builds it.
 - Push to `main` or `develop`: builds and pushes, tags as in step 1.
 - Pull request touching `GymLogsParser/Dockerfile`, the root `.dockerignore`, a
   `.csproj` or the workflow: builds only, never pushes.
-- The `image` job exposes `tag` and `digest-gymlogsparser` as outputs, for a nudge
-  deploy job to be added later.
+- The `image` job exposes `tag` and `digest-gymlogsparser` as outputs.
+- Push to `main` only: after the image is pushed, the `deploy (prod)` job deploys it
+  through nudge. `develop` is not deployed: there is no staging stack. The job calls
+  nudge's deploy API with the progress stream:
+
+  ```
+  POST $NUDGE_SERVER_URL/api/v1/deployments/$NUDGE_DEPLOYMENT/deploys?stream=1
+  {"variables": {"API_IMAGE": "registrydedic.zefirlabs.net/gymlogsparser@sha256:..."}}
+  ```
+
+  It follows the run and fails unless the run ends `succeeded` (`failed`,
+  `rolled_back`, a refused request or a broken stream all fail the job). `rolled_back`
+  means nudge already put the previous image back. Deploys run one at a time (a
+  concurrency group that never cancels), so a newer push waits for the current deploy.
+  The token is passed to curl through a config on stdin and never appears in the log.
 
 One-time setup by zefir (repo Settings):
 
@@ -175,8 +199,18 @@ One-time setup by zefir (repo Settings):
    user that can push to `registrydedic.zefirlabs.net/gymlogsparser`. Without them, pushes to `main` and
    `develop` fail with "REGISTRY_USER/REGISTRY_PASSWORD secrets are not set"; pull
    request builds don't need them.
-3. In nudge, set the stack's `API_TAG` to `develop` or `latest` (the
-   compose default is `latest`) and deploy; nudge pulls with `--pull always`.
+3. **nudge deployment** (step 3.4 under [nudge setup](#3-nudge-setup)) and a nudge
+   deploy token for that deployment only, with the scopes `deploy` and `runs:read`.
+4. **Deploy settings** (Settings, Actions):
+
+   | Kind     | Name                 | Value |
+   |----------|----------------------|-------|
+   | Secret   | `NUDGE_DEPLOY_TOKEN` | The nudge deploy token from step 3 |
+   | Variable | `NUDGE_SERVER_URL`   | The nudge server's URL, e.g. `https://nudge.zefirlabs.net` |
+   | Variable | `NUDGE_DEPLOYMENT`   | The deployment's name, e.g. `gym-logs-parser` |
+
+   Without one of them, the deploy job fails at its first step, names the missing
+   setting and deploys nothing (the image is still pushed).
 
 ## Known limits
 
