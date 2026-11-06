@@ -3,12 +3,14 @@
 # On a pull request it only builds, as a check, and only when the PR touches what the
 # image build depends on beyond the code. On a push to develop it also pushes to the
 # registry as `develop-<sha>` and `develop`; on a push to main as `main-<sha>` and
-# `latest` (rebuilt from main, not promoted from develop). nudge's stack picks them up
-# through API_TAG (deploy/README.md).
+# `latest` (rebuilt from main, not promoted from develop).
+# On a push to main the `deploy` job then deploys the pushed image to production through
+# nudge, by digest (deploy/README.md, CI). There is no staging deployment, so develop
+# only pushes its image.
 # Jobs get no Docker socket, so kaniko builds the image: no daemon, no privileges, and
 # it pushes straight to the registry.
 #
-# Outputs for a later deploy job (`needs: image`), set only on runs that push:
+# Outputs for the deploy job (`needs: image`), set only on runs that push:
 #   tag               the immutable tag, e.g. develop-0123456789ab
 #   digest-<name>     the pushed image's digest (sha256:...), one per matrix entry;
 #                     deploy by `<image>@<digest>`, not by the moving tag.
@@ -112,3 +114,75 @@ jobs:
           echo "tag=$TAG" >> "$FORGEJO_OUTPUT"
           echo "digest-$NAME=$digest" >> "$FORGEJO_OUTPUT"
           echo "pushed $IMAGE:$TAG@$digest"
+
+  # Deploys the image this run pushed to production through nudge (deploy/README.md, CI),
+  # on pushes to main only: never for develop, pull requests or anything else. nudge
+  # pulls, brings the stack up and runs the deployment's health checks; the job follows
+  # the run's progress stream and fails unless the run ends `succeeded` (`failed`,
+  # `rolled_back`, `superseded` and a broken stream all fail).
+  deploy:
+    name: deploy (prod)
+    needs: image
+    if: forgejo.event_name == 'push' && forgejo.ref == 'refs/heads/main'
+    runs-on: docker
+    timeout-minutes: 25
+    # One prod deploy at a time; later ones wait, none is cancelled. (nudge also runs a
+    # deployment's runs one at a time.)
+    concurrency:
+      group: gymlogsparser-prod-deploy
+      cancel-in-progress: false
+    container:
+      image: node:24 # has bash and curl; node parses the final status line
+    env:
+      NUDGE_SERVER_URL: ${{ vars.NUDGE_SERVER_URL }}
+      NUDGE_DEPLOYMENT: ${{ vars.NUDGE_DEPLOYMENT }}
+      TAG: ${{ needs.image.outputs.tag }}
+      API_IMAGE_REPO: registrydedic.zefirlabs.net/gymlogsparser
+      API_DIGEST: ${{ needs.image.outputs.digest-gymlogsparser }}
+
+    steps:
+      # The token reaches curl through a config on stdin (printf is a shell builtin), so
+      # it is never on a command line or in the log. No `set -x` here.
+      - name: Deploy
+        shell: bash
+        env:
+          NUDGE_DEPLOY_TOKEN: ${{ secrets.NUDGE_DEPLOY_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Named as in Forgejo, so the message says which setting is missing.
+          [ -n "${NUDGE_DEPLOY_TOKEN:-}" ] || { echo "secret NUDGE_DEPLOY_TOKEN is not set" >&2; exit 1; }
+          [ -n "${NUDGE_SERVER_URL:-}" ] || { echo "variable NUDGE_SERVER_URL is not set" >&2; exit 1; }
+          [ -n "${NUDGE_DEPLOYMENT:-}" ] || { echo "variable NUDGE_DEPLOYMENT is not set" >&2; exit 1; }
+          if ! [[ "$NUDGE_DEPLOYMENT" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "NUDGE_DEPLOYMENT is not a deployment name: '$NUDGE_DEPLOYMENT'" >&2; exit 1
+          fi
+          if ! [[ "${API_DIGEST:-}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "bad API image digest: '${API_DIGEST:-}'" >&2; exit 1
+          fi
+          body="{\"variables\":{\"API_IMAGE\":\"$API_IMAGE_REPO@$API_DIGEST\"}}"
+          url="${NUDGE_SERVER_URL%/}/api/v1/deployments/$NUDGE_DEPLOYMENT/deploys?stream=1"
+          echo "deploying $TAG to $NUDGE_DEPLOYMENT: $body"
+
+          # One JSON line per progress event, `{}` every 25 s while nothing happens, and
+          # last the run's result. Errors before the run is queued (bad token, a variable
+          # the deployment doesn't allow, ...) are a plain JSON error and an HTTP error.
+          progress=$(mktemp)
+          if ! printf 'header = "Authorization: Bearer %s"\n' "$NUDGE_DEPLOY_TOKEN" |
+            curl -sS -N --fail-with-body --connect-timeout 30 --max-time 1200 -K - \
+              -H 'Content-Type: application/json' --data "$body" "$url" | tee "$progress"; then
+            echo >&2
+            echo "deploy request failed: nudge refused it or the stream broke off (see above)." >&2
+            echo "A run that was already queued keeps going in nudge; check it there." >&2
+            exit 1
+          fi
+
+          last=$(grep -v '^[[:space:]]*$' "$progress" | tail -n 1 || true)
+          status=$(printf '%s' "$last" | node -e '
+            let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+              try { const v = JSON.parse(s).status; if (typeof v === "string") process.stdout.write(v); } catch {}
+            });')
+          if [ "$status" != succeeded ]; then
+            echo "deploy run ended '${status:-without a final status}'; see the last lines above and the run in nudge." >&2
+            exit 1
+          fi
+          echo "deployed $TAG to $NUDGE_DEPLOYMENT"
