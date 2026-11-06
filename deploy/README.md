@@ -1,61 +1,87 @@
 # Deploying on nudge
 
-The stack is `deploy/compose.yaml`, deployed by nudge as a stack from git. It runs two
-containers; Postgres is an external service, not part of the stack:
+The stack is `deploy/compose.yaml`, deployed by nudge as a stack from git. It runs only
+the API; Postgres is an external service, and the Vue frontend (`UI/gymlogsparser`) is
+built and hosted by Cloudflare Pages on every push to `main`:
 
-| Service    | Image                                                 | Role |
-|------------|-------------------------------------------------------|------|
-| `ui`       | `registrydedic.zefirlabs.net/gymlogsparser-ui:${UI_TAG}` | nginx: serves the SPA, proxies the API. The only published port. |
-| `api`      | `registrydedic.zefirlabs.net/gymlogsparser:${API_TAG}`   | ASP.NET API, applies EF migrations on startup. |
+| Part     | Where | Role |
+|----------|-------|------|
+| `api`    | nudge, `registrydedic.zefirlabs.net/gymlogsparser:${API_TAG}` | ASP.NET API and OIDC login, applies EF migrations on startup. Published on `API_BIND:API_PORT`. |
+| frontend | Cloudflare Pages | The SPA. Calls the API cross-origin with the session cookie. |
+
+The examples below use `https://gymlogs.zefirlabs.net` for the Pages site and
+`https://gymlogs-api.zefirlabs.net` for the API; use your own hostnames.
 
 ## Routing
 
-Everything is served from one origin, `https://gymlogs.zefirlabs.net`:
+- The host's reverse proxy (TLS) forwards the API's public hostname to the `api` port
+  (`127.0.0.1:8085` by default, `API_BIND`/`API_PORT`) and must send
+  `X-Forwarded-Proto: https` and the original `Host`. The API trusts forwarded headers,
+  so it builds `https://<api host>/...` URLs (the OIDC redirect URI among them).
+- Every controller lives under `/api` (`/api/auth`, `/api/workouts`, `/api/ai`, ...);
+  the OIDC handler answers on `/signin-oidc` and `/signout-callback-oidc`.
 
-- The host's reverse proxy (TLS) forwards to the `ui` port (`127.0.0.1:8085` by default)
-  and must send `X-Forwarded-Proto: https` and the original `Host`.
-- nginx in `ui` proxies `/api/*`, `/signin-oidc` and `/signout-callback-oidc` to `api:8080`
-  and passes on `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-For`. The API
-  already trusts forwarded headers, so it builds `https://gymlogs.zefirlabs.net/...` URLs.
-- Every other path is the SPA (including its own `/auth/error` and `/signed-out` routes).
-- The UI image is built with `VITE_API_URL=/api`, so the browser never needs another origin
-  and the session cookie is first-party.
+### Cloudflare Pages build
 
-## 1. Build and push the images
+Set the build environment variable (Production, and Preview if you use it):
 
-Forgejo Actions builds and pushes both images (see [CI](#ci) below):
+```
+VITE_API_URL=https://gymlogs-api.zefirlabs.net/api
+```
 
-| Push to   | Tags pushed (both images)  | nudge `API_TAG` / `UI_TAG` |
-|-----------|----------------------------|----------------------------|
-| `main`    | `latest`, `main-<sha>`     | `latest`                   |
-| `develop` | `develop`, `develop-<sha>` | `develop`                  |
+It must end in `/api`, with no trailing slash: the frontend prefixes it to paths without
+`/api` (`/workouts`, `/auth/me`, `/auth/login`), and the routes are `api/...`. Vite reads
+it at build time, so redeploy Pages after changing it.
 
-`<sha>` is the commit's first 12 hex characters; set `API_TAG`/`UI_TAG` to such a tag to
-pin a build.
+### Session cookie: same site
+
+The login cookie (`gymlogs.session`) is `SameSite=Lax`. The frontend sends it with
+`fetch(..., { credentials: "include" })` (`src/api/api.ts`) and logs out with a form
+POST to `/api/auth/logout`. Browsers send a Lax cookie on those requests only when the
+frontend and the API are **same-site**: subdomains of the same registrable domain, e.g.
+`gymlogs.zefirlabs.net` and `gymlogs-api.zefirlabs.net`. So:
+
+- Give the Pages project a custom domain under the API's domain. The default
+  `*.pages.dev` address is a different site: logged-in requests from it get 401.
+- Both must be HTTPS (the cookie is `Secure`).
+
+Cross-origin is still needed: `Frontend__Cors` must list the Pages origin exactly (the
+API allows credentials for those origins only).
+
+## 1. Build and push the image
+
+Forgejo Actions builds and pushes the API image (see [CI](#ci) below):
+
+| Push to   | Tags pushed                | nudge `API_TAG` |
+|-----------|----------------------------|-----------------|
+| `main`    | `latest`, `main-<sha>`     | `latest`        |
+| `develop` | `develop`, `develop-<sha>` | `develop`       |
+
+`<sha>` is the commit's first 12 hex characters; set `API_TAG` to such a tag to pin a
+build.
 
 By hand instead, from the repo root, logged in to `registrydedic.zefirlabs.net`:
 
 ```sh
-make publish-all              # API and UI, tag latest
-make publish-all TAG=1.2.0    # or a fixed tag; then set API_TAG/UI_TAG to 1.2.0
+make publish              # tag latest
+make publish TAG=1.2.0    # or a fixed tag; then set API_TAG to 1.2.0
 ```
-
-`make publish` (API) and `make publish-ui` (UI) also work on their own.
 
 ## 2. authestra client
 
 On the client used by `Auth__ClientId`:
 
-- Redirect URI: `https://gymlogs.zefirlabs.net/signin-oidc`
-- Post-logout redirect: the app sends `https://gymlogs.zefirlabs.net/signout-callback-oidc`.
-  authestra accepts a post-logout URI on the same origin as a registered redirect URI,
-  so the redirect URI above covers it.
+- Redirect URI: `https://gymlogs-api.zefirlabs.net/signin-oidc` (the API host, not Pages).
+- Post-logout redirect: the app sends `https://gymlogs-api.zefirlabs.net/signout-callback-oidc`
+  (then `/api/auth/signed-out` sends the browser on to the Pages site). authestra accepts
+  a post-logout URI on the same origin as a registered redirect URI, so the redirect URI
+  above covers it.
 - Scopes: `openid profile email`; the `roles` claim decides who is `admin`.
 
 ## 3. nudge setup
 
 1. **Registry** (Registries): address `registrydedic.zefirlabs.net` with a user that can
-   pull both images. nudge passes it to compose because the compose file names that host.
+   pull the image. nudge passes it to compose because the compose file names that host.
 2. **Stack from git** (Stacks, new stack, from git):
    - name: `gym-logs-parser`
    - repo URL: `https://git.zefirlabs.net/zefir/gym-logs-parser.git`
@@ -76,12 +102,12 @@ On the client used by `Auth__ClientId`:
 | `Auth__Authority` | yes | authestra issuer URL (exactly its ISSUER). |
 | `Auth__ClientId` | yes | authestra client ID. |
 | `Auth__ClientSecret` | yes, secret | authestra client secret. |
-| `Auth__FrontendUrl` | yes | `https://gymlogs.zefirlabs.net` |
+| `Auth__FrontendUrl` | yes | The Pages URL, e.g. `https://gymlogs.zefirlabs.net`; login, logout and errors redirect there. |
 | `DeepSeek__ApiKey` | yes, secret | DeepSeek API key. |
-| `Frontend__Cors` | recommended | `https://gymlogs.zefirlabs.net`, so the image's dev origins don't apply. |
-| `Frontend__Url` | no | Public URL of the frontend. |
-| `API_TAG`, `UI_TAG` | no | Image tags, default `latest`. |
-| `UI_BIND`, `UI_PORT` | no | Where the UI port is published, default `127.0.0.1:8085`. |
+| `Frontend__Cors` | yes | The Pages origin, e.g. `https://gymlogs.zefirlabs.net` (comma-separated if several). |
+| `Frontend__Url` | no | Not read by the API today; keep it equal to `Auth__FrontendUrl`. |
+| `API_TAG` | no | Image tag, default `latest`. |
+| `API_BIND`, `API_PORT` | no | Where the API port is published, default `127.0.0.1:8085`. |
 | `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
 | `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
 
@@ -119,36 +145,37 @@ The `api` container must be able to reach the database host:
 
 ## 5. First deploy
 
-1. Push both images (step 1) and set up authestra, the registry and the stack (steps 2-3).
-2. Point the reverse proxy for `gymlogs.zefirlabs.net` at `UI_BIND:UI_PORT`.
+1. Push the image (step 1) and set up authestra, the registry and the stack (steps 2-3).
+2. Point the reverse proxy for the API hostname (e.g. `gymlogs-api.zefirlabs.net`) at
+   `API_BIND:API_PORT`.
 3. Create the database and its owner (see [Database](#database)).
 4. Pull/deploy the stack in nudge. `api` creates the schema (watch its logs for the
-   migration), then `ui` starts.
-5. Open https://gymlogs.zefirlabs.net, log in, and parse a workout.
+   migration).
+5. In Cloudflare Pages, set `VITE_API_URL` (see [Cloudflare Pages build](#cloudflare-pages-build))
+   and a custom domain on the same site, then redeploy Pages.
+6. Open the Pages site, log in, and parse a workout.
 
-Updates: push new images and deploy again (nudge deploys with `--pull always`).
+Updates: push a new image and deploy again (nudge deploys with `--pull always`).
 
 ## CI
 
-`.forgejo/workflows/image.yaml` builds both images with kaniko (the runners have no
-Docker socket):
+`.forgejo/workflows/image.yaml` builds the API image with kaniko (the runners have no
+Docker socket). The frontend is not built here; Cloudflare Pages builds it.
 
 - Push to `main` or `develop`: builds and pushes, tags as in step 1.
-- Pull request touching a Dockerfile, a `.dockerignore`, a `.csproj`, the UI's
-  `package.json`, `pnpm-lock.yaml` or `nginx.conf`, or the workflow: builds only, never
-  pushes.
-- The `image` job exposes `tag` and `digest-gymlogsparser` / `digest-gymlogsparser-ui`
-  as outputs, for a nudge deploy job to be added later.
+- Pull request touching `GymLogsParser/Dockerfile`, the root `.dockerignore`, a
+  `.csproj` or the workflow: builds only, never pushes.
+- The `image` job exposes `tag` and `digest-gymlogsparser` as outputs, for a nudge
+  deploy job to be added later.
 
 One-time setup by zefir (repo Settings):
 
 1. **Enable Actions** for the repo (Settings: turn on the Actions unit).
 2. **Secrets** (Settings, Actions, Secrets): `REGISTRY_USER` and `REGISTRY_PASSWORD`, a
-   user that can push to `registrydedic.zefirlabs.net/gymlogsparser` and
-   `registrydedic.zefirlabs.net/gymlogsparser-ui`. Without them, pushes to `main` and
+   user that can push to `registrydedic.zefirlabs.net/gymlogsparser`. Without them, pushes to `main` and
    `develop` fail with "REGISTRY_USER/REGISTRY_PASSWORD secrets are not set"; pull
    request builds don't need them.
-3. In nudge, set the stack's `API_TAG` and `UI_TAG` to `develop` or `latest` (the
+3. In nudge, set the stack's `API_TAG` to `develop` or `latest` (the
    compose default is `latest`) and deploy; nudge pulls with `--pull always`.
 
 ## Known limits
