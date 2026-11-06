@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 import SegmentedControl from "@/components/dashboard/SegmentedControl.vue";
+import SessionModal from "@/components/dashboard/SessionModal.vue";
 import { useDashboardStore } from "@/stores/dashboard";
 import type { DashboardMetric } from "@/types/dashboard";
 import {
@@ -62,10 +63,14 @@ const chart = computed(() => {
 
   const dots = points.map((p) => ({
     key: p.day,
+    /** Position as a fraction of the plot box, for hit testing. */
+    fx: x(p.day) / SIZE,
+    fy: y(p.value) / SIZE,
     left: `${(x(p.day) / 10).toFixed(2)}%`,
     top: `${(y(p.value) / 10).toFixed(2)}%`,
     pr: p.pr,
     tip: `${formatDay(p.day)} · ${formatKg(p.value)}${p.pr ? " · PR" : ""}`,
+    workoutIds: p.workoutIds,
   }));
 
   const yTicks = [0.125, 0.375, 0.625, 0.875].map((f) => ({
@@ -108,6 +113,130 @@ const chart = computed(() => {
   };
 });
 
+// --- picking a session: hover/tap/keyboard, then open it in a modal ---
+
+const plotEl = ref<HTMLElement | null>(null);
+/** Index into chart.dots of the highlighted session, if any. */
+const active = ref<number | null>(null);
+
+const activeDot = computed(() =>
+  chart.value && active.value !== null
+    ? (chart.value.dots[active.value] ?? null)
+    : null,
+);
+
+// Dots are re-laid out on every filter/metric change or reload.
+watch(chart, () => (active.value = null));
+
+const coarsePointer =
+  typeof window !== "undefined" &&
+  !!window.matchMedia?.("(pointer: coarse)").matches;
+
+/**
+ * The dot nearest to the pointer. Dots are tiny and can sit close together, so
+ * instead of exact hits anything within a horizontal band around a dot counts,
+ * wider for fingers; among those the closest one wins.
+ */
+function nearestDot(e: MouseEvent): number | null {
+  const dots = chart.value?.dots;
+  const box = plotEl.value?.getBoundingClientRect();
+  if (!dots || !box) return null;
+
+  // Some browsers send click as a plain MouseEvent, or with an empty pointerType.
+  const pointerType = "pointerType" in e ? (e as PointerEvent).pointerType : "";
+  const touch = pointerType === "touch" || (!pointerType && coarsePointer);
+  const band = touch ? 32 : 20;
+  const px = e.clientX - box.left;
+  const py = e.clientY - box.top;
+
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  for (let i = 0; i < dots.length; i++) {
+    const dot = dots[i]!;
+    const dx = dot.fx * box.width - px;
+    if (Math.abs(dx) > band) continue;
+    const dy = dot.fy * box.height - py;
+    const distance = dx * dx + dy * dy;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (e.pointerType === "mouse") active.value = nearestDot(e);
+}
+
+function onPointerLeave(e: PointerEvent) {
+  if (e.pointerType === "mouse" && document.activeElement !== plotEl.value) {
+    active.value = null;
+  }
+}
+
+function onPlotClick(e: MouseEvent) {
+  const index = nearestDot(e);
+  if (index !== null) openDot(index);
+}
+
+function onPlotFocus() {
+  // Only keyboard focus highlights a dot; a mouse press focuses the plot too.
+  if (active.value === null && plotEl.value?.matches(":focus-visible")) {
+    active.value = (chart.value?.dots.length ?? 0) - 1;
+  }
+}
+
+function onPlotKeydown(e: KeyboardEvent) {
+  const count = chart.value?.dots.length ?? 0;
+  if (count === 0) return;
+  const current = active.value ?? count - 1;
+
+  switch (e.key) {
+    case "ArrowLeft":
+    case "ArrowDown":
+      active.value = Math.max(0, current - 1);
+      break;
+    case "ArrowRight":
+    case "ArrowUp":
+      active.value = Math.min(count - 1, current + 1);
+      break;
+    case "Home":
+      active.value = 0;
+      break;
+    case "End":
+      active.value = count - 1;
+      break;
+    case "Enter":
+    case " ":
+      openDot(current);
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
+}
+
+interface OpenSession {
+  exerciseId: string;
+  exerciseName: string;
+  workoutIds: string[];
+}
+
+const session = ref<OpenSession | null>(null);
+
+function openDot(index: number) {
+  const dot = chart.value?.dots[index];
+  const exercise = store.chartExercise;
+  if (!dot || !exercise || dot.workoutIds.length === 0) return;
+  active.value = index;
+  session.value = {
+    exerciseId: exercise.exerciseId,
+    exerciseName: exercise.name,
+    workoutIds: dot.workoutIds,
+  };
+}
+
 const emptyText = computed(() => {
   if (!store.chartExercise) {
     return store.muscle === CARDIO
@@ -140,7 +269,20 @@ const emptyText = computed(() => {
     </div>
 
     <div v-if="chart" class="plot-wrap">
-      <div class="plot">
+      <div
+        ref="plotEl"
+        class="plot"
+        :class="{ pickable: activeDot }"
+        tabindex="0"
+        role="group"
+        :aria-label="`${title}. Use the arrow keys to pick a session and Enter to open it.`"
+        @pointermove="onPointerMove"
+        @pointerleave="onPointerLeave"
+        @click="onPlotClick"
+        @focus="onPlotFocus"
+        @blur="active = null"
+        @keydown="onPlotKeydown"
+      >
         <template v-for="tick in chart.yTicks" :key="tick.top">
           <div class="gridline" :style="{ top: tick.top }" />
           <div class="y-label" :style="{ top: tick.top }">{{ tick.label }}</div>
@@ -156,13 +298,29 @@ const emptyText = computed(() => {
         </svg>
 
         <div
-          v-for="dot in chart.dots"
+          v-for="(dot, i) in chart.dots"
           :key="dot.key"
           class="dot"
-          :class="{ pr: dot.pr }"
+          :class="{ pr: dot.pr, active: i === active }"
           :style="{ left: dot.left, top: dot.top }"
-          :title="dot.tip"
         />
+
+        <div
+          v-if="activeDot"
+          class="tip"
+          :class="{
+            'tip--start': activeDot.fx < 0.15,
+            'tip--end': activeDot.fx > 0.85,
+            'tip--below': activeDot.fy < 0.2,
+          }"
+          :style="{ left: activeDot.left, top: activeDot.top }"
+          aria-live="polite"
+        >
+          {{ activeDot.tip }}
+          <span class="tip__hint">{{
+            activeDot.workoutIds.length ? "Click to view or edit" : ""
+          }}</span>
+        </div>
       </div>
       <div class="x-axis">
         <span
@@ -175,11 +333,21 @@ const emptyText = computed(() => {
         </span>
       </div>
       <div class="key">
+        <span class="hint">Tap a point to open that session</span>
         <span class="key-dot pr" /> PR session
       </div>
     </div>
 
     <div v-else class="empty">{{ emptyText }}</div>
+
+    <SessionModal
+      v-if="session"
+      :exercise-id="session.exerciseId"
+      :exercise-name="session.exerciseName"
+      :workout-ids="session.workoutIds"
+      @close="session = null"
+      @saved="store.load()"
+    />
   </section>
 </template>
 
@@ -244,6 +412,19 @@ const emptyText = computed(() => {
 .plot {
   position: relative;
   height: 240px;
+  touch-action: manipulation; /* no double-tap zoom delay on the tap */
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.plot.pickable {
+  cursor: pointer;
+}
+
+.plot:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 6px;
+  border-radius: var(--radius-control);
 }
 
 .gridline {
@@ -303,6 +484,59 @@ svg {
   background: var(--bg-base);
 }
 
+.dot {
+  pointer-events: none;
+  transition: transform 120ms var(--ease);
+}
+
+.dot.active {
+  transform: scale(1.8);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
+}
+
+.dot.pr.active {
+  transform: scale(1.3);
+}
+
+.tip {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, calc(-100% - 12px));
+  padding: 5px 8px;
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-glass);
+
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tip--start {
+  transform: translate(-8px, calc(-100% - 12px));
+}
+
+.tip--end {
+  transform: translate(calc(-100% + 8px), calc(-100% - 12px));
+}
+
+.tip--below {
+  translate: 0 calc(100% + 24px);
+}
+
+.tip__hint {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.tip__hint:empty {
+  display: none;
+}
+
 .x-axis {
   position: relative;
   height: 20px;
@@ -318,6 +552,7 @@ svg {
 
 .key {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
@@ -332,6 +567,16 @@ svg {
 
 .key-dot.pr {
   margin: 0;
+}
+
+.hint {
+  margin-right: auto;
+}
+
+@media (pointer: fine) {
+  .hint {
+    display: none;
+  }
 }
 
 .empty {

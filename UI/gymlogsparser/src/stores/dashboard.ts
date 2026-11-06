@@ -289,6 +289,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
               ? s.entry.topSet
               : s.entry.volume,
         pr: s.entry.pr,
+        // Older API responses have no workout IDs; such points just can't be opened.
+        workoutIds: s.entry.workoutIds ?? [],
       }))
       .filter((p) => p.value > 0);
   });

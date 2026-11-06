@@ -36,6 +36,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
             .Select(s => new
             {
                 Date = s.WorkoutExercise.Workout.Date!.Value,
+                s.WorkoutExercise.WorkoutId,
                 s.WorkoutExercise.ExerciseId,
                 s.Weight,
                 s.Reps
@@ -50,6 +51,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
             .Select(c => new
             {
                 Date = c.WorkoutExercise.Workout.Date!.Value,
+                c.WorkoutExercise.WorkoutId,
                 c.WorkoutExercise.ExerciseId,
                 c.DurationSeconds
             })
@@ -114,6 +116,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
                 entries[(day.Key, exercise.Key)] = new DashboardDayEntry
                 {
                     ExerciseId = exercise.Key,
+                    WorkoutIds = day.Select(s => s.WorkoutId).Distinct().ToList(),
                     Sets = day.Count(),
                     TopSet = weighted.Count > 0 ? weighted.Max(s => s.Weight) : 0m,
                     EstimatedOneRepMax = Math.Round(e1Rm, 2),
@@ -130,6 +133,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
             entries[group.Key] = new DashboardDayEntry
             {
                 ExerciseId = group.Key.ExerciseId,
+                WorkoutIds = group.Select(c => c.WorkoutId).Distinct().ToList(),
                 Sets = group.Count(),
                 Minutes = Math.Round(group.Sum(c => c.DurationSeconds ?? 0) / 60m, 1)
             };

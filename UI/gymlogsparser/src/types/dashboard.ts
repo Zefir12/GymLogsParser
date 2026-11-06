@@ -25,6 +25,8 @@ export interface DashboardDay {
 /** One exercise on one day; warm-up sets are already excluded. */
 export interface DashboardDayEntry {
   exerciseId: string;
+  /** Workout(s) the exercise was logged in that day; usually one. */
+  workoutIds: string[];
   /** Working sets (strength) or cardio entries. */
   sets: number;
   /** Cardio minutes (0 for strength). */
