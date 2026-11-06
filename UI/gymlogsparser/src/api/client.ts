@@ -1,6 +1,10 @@
 import { api } from "@/api/api";
 import type { ParseWorkoutResponse, WorkoutLog } from "@/types/workout";
-import type { ExerciseProgressPoint, ExerciseSummary } from "@/types/exercise";
+import type {
+  ExerciseDefinition,
+  ExerciseProgressPoint,
+  ExerciseSummary,
+} from "@/types/exercise";
 import type { DashboardData } from "@/types/dashboard";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
@@ -24,6 +28,21 @@ export const deleteWorkout = (id: string) =>
   api.delete(`/workouts/${encodeURIComponent(id)}`);
 
 export const getExercises = () => api.get<ExerciseSummary[]>("/exercises");
+
+export const getExerciseDefinitions = () =>
+  api.get<ExerciseDefinition[]>("/exercises/definitions");
+
+export const createExerciseDefinition = (definition: ExerciseDefinition) =>
+  api.post<ExerciseDefinition>("/exercises/definitions", definition);
+
+export const updateExerciseDefinition = (
+  id: string,
+  definition: ExerciseDefinition,
+) =>
+  api.put<ExerciseDefinition>(
+    `/exercises/definitions/${encodeURIComponent(id)}`,
+    definition,
+  );
 
 export const getExerciseProgress = (exerciseId: string) =>
   api.get<ExerciseProgressPoint[]>(

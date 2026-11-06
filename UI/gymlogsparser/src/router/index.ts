@@ -30,6 +30,11 @@ const routes = [
     component: () => import("@/views/WorkoutsView.vue"),
   },
   {
+    path: "/exercises",
+    name: "exercises",
+    component: () => import("@/views/ExercisesView.vue"),
+  },
+  {
     path: "/admin",
     component: () => import("@/views/AdminView.vue"),
     meta: { roles: ["admin"] },
