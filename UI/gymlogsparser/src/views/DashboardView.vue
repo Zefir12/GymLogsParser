@@ -58,11 +58,11 @@ onMounted(store.load);
     <template v-else>
       <BodyPartTiles />
       <TrainingHeatmap />
+      <WeeklySetsBars />
       <div class="split">
         <ExerciseTable class="table" />
         <ProgressChart class="chart" />
       </div>
-      <WeeklySetsBars />
     </template>
   </div>
 </template>
