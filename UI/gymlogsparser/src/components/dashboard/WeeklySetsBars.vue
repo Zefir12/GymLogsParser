@@ -95,14 +95,32 @@ const bars = computed(() => {
       >
         <span class="label">{{ bar.group }}</span>
         <span class="track">
-          <span v-if="bar.band" class="band" :style="bar.band" />
-          <span class="fill" :style="{ width: bar.width }" />
+          <span
+            v-if="bar.band"
+            class="band"
+            :class="{ hit: bar.status === 'On target' }"
+            :style="bar.band"
+          />
+          <span
+            class="fill"
+            :class="{
+              'on-target': bar.status === 'On target',
+              'over-target': bar.status === 'Above target',
+            }"
+            :style="{ width: bar.width }"
+          />
         </span>
         <span class="value">{{ bar.label }}</span>
         <span class="range">{{ bar.range }}</span>
         <span
           class="status"
-          :class="bar.status === 'On target' ? 'good' : 'warn'"
+          :class="
+            bar.status === 'On target'
+              ? 'good'
+              : bar.status === 'Above target'
+                ? 'over'
+                : 'warn'
+          "
         >
           <span class="long">{{ bar.status }}</span>
           <span class="short">{{ bar.short }}</span>
@@ -222,6 +240,11 @@ h2 {
   border-right: 1px solid var(--target-band-edge);
 }
 
+.band.hit {
+  background: var(--target-band-hit-bg);
+  border-color: var(--target-band-hit-edge);
+}
+
 .fill {
   position: absolute;
   top: 0;
@@ -229,6 +252,14 @@ h2 {
   left: 0;
   border-radius: var(--radius-sm);
   background: var(--bar-idle);
+}
+
+.fill.on-target {
+  background: var(--bar-on-target);
+}
+
+.fill.over-target {
+  background: var(--bar-over-target);
 }
 
 .active .fill {
@@ -260,6 +291,10 @@ h2 {
 
 .warn {
   color: var(--warning);
+}
+
+.over {
+  color: var(--over-target-text);
 }
 
 @media (max-width: 520px) {

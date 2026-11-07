@@ -1,7 +1,7 @@
 import { computed, ref, watch } from "vue";
 import { defineStore } from "pinia";
 
-import { getDashboard } from "@/api/client";
+import { getDashboard, getWorkouts } from "@/api/client";
 import { useExerciseCatalogStore } from "@/stores/exercises";
 import type {
   DashboardData,
@@ -52,6 +52,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const muscle = ref<string>(ALL);
   const exerciseId = ref<string | null>(null);
   const metric = ref<DashboardMetric>("e1rm");
+  /** Training-days heatmap: null = the last 53 weeks, else a calendar year. */
+  const heatmapYear = ref<number | null>(null);
+  /** Calendar years with at least one dated workout, newest first. */
+  const trainingYears = ref<number[]>([]);
 
   /** The catalog supplies each exercise's secondary muscle groups and shares. */
   const catalog = useExerciseCatalogStore();
@@ -59,15 +63,33 @@ export const useDashboardStore = defineStore("dashboard", () => {
   /** Bumped per request so a slow, older response never overwrites a newer one. */
   let requestId = 0;
 
-  async function load() {
+  /** Fills `trainingYears` once; a failure only hides the older years. */
+  async function loadTrainingYears() {
+    if (trainingYears.value.length) return;
+    try {
+      const workouts = await getWorkouts();
+      const years = new Set<number>();
+      for (const w of workouts) if (w.date) years.add(Number(w.date.slice(0, 4)));
+      trainingYears.value = [...years].sort((a, b) => b - a);
+    } catch {
+      // keep the list empty: the heatmap still shows the last 53 weeks
+    }
+  }
+
+  /**
+   * Loads the dashboard. `window` asks for a wider response than the selected
+   * range (the heatmap's year needs older days); the range filter still applies.
+   */
+  async function load(window: DashboardRange = neededWindow()) {
     const id = ++requestId;
     loading.value = true;
     error.value = null;
     try {
       // A catalog that fails to load only means no secondary shares.
       const [result] = await Promise.all([
-        getDashboard(todayIso(), range.value),
+        getDashboard(todayIso(), window),
         catalog.ensureLoaded(),
+        loadTrainingYears(),
       ]);
       if (id === requestId) data.value = result;
     } catch (err) {
@@ -96,8 +118,23 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const toDay = computed(() => (data.value ? dayNumber(data.value.to) : 0));
   /** Monday of the week that contains `to`. */
   const currentWeekStart = computed(() => weekStart(toDay.value));
-  /** Monday of the heatmap's first week: 53 weeks ending with the current one. */
-  const heatmapStart = computed(() => currentWeekStart.value - 52 * 7);
+  /** First and last day the heatmap shows: a calendar year, or the last 53 weeks. */
+  const heatmapFirstDay = computed(() =>
+    heatmapYear.value === null
+      ? currentWeekStart.value - 52 * 7
+      : dayNumber(`${heatmapYear.value}-01-01`),
+  );
+  const heatmapLastDay = computed(() =>
+    heatmapYear.value === null
+      ? toDay.value
+      : Math.min(toDay.value, dayNumber(`${heatmapYear.value}-12-31`)),
+  );
+  /** Monday of the heatmap's first column. */
+  const heatmapStart = computed(() => weekStart(heatmapFirstDay.value));
+  /** Number of week columns the heatmap shows. */
+  const heatmapWeeks = computed(
+    () => (weekStart(heatmapLastDay.value) - heatmapStart.value) / 7 + 1,
+  );
   /** First day of the selected range. */
   const rangeStart = computed(
     () => toDay.value - RANGE_DAYS[range.value] + 1,
@@ -107,6 +144,24 @@ export const useDashboardStore = defineStore("dashboard", () => {
   // them only when the loaded window doesn't reach back far enough.
   watch(range, () => {
     if (data.value && rangeStart.value < fromDay.value) load();
+  });
+
+  /**
+   * The smallest range that covers both the selected range and the heatmap's
+   * year (a past year may be older than the range).
+   */
+  function neededWindow(): DashboardRange {
+    if (heatmapYear.value === null || !data.value) return range.value;
+    const needed = Math.max(
+      RANGE_DAYS[range.value],
+      toDay.value - heatmapStart.value + 1,
+    );
+    const ranges = Object.keys(RANGE_DAYS) as DashboardRange[];
+    return ranges.find((r) => RANGE_DAYS[r] >= needed) ?? "10Y";
+  }
+
+  watch(heatmapYear, () => {
+    if (data.value && heatmapStart.value < fromDay.value) load();
   });
 
   const exerciseById = computed(
@@ -362,6 +417,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
     muscle,
     exerciseId,
     metric,
+    heatmapYear,
+    trainingYears,
     load,
     setMuscle,
     toggleMuscle,
@@ -369,6 +426,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
     toDay,
     currentWeekStart,
     heatmapStart,
+    heatmapFirstDay,
+    heatmapLastDay,
+    heatmapWeeks,
     rangeStart,
     dayByNumber,
     groups,

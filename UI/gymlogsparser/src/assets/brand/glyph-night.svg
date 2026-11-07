@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="96 145 346 247" width="346" height="247">
   <!-- Night variant of glyph-on-dark.svg (#53): Blokowisko greys
-       (--night-grey-6/5/4/3) and Żabka green (--night-green,
-       saturated in #61). -->
+       (night-grey 6/5/4/3) and Zabka green (night-green,
+       saturated in #61). No double hyphens: invalid in XML comments. -->
   <rect x="106" y="352" width="130" height="30" rx="15" fill="#444348"/>
   <rect x="106" y="290" width="210" height="30" rx="15" fill="#575762"/>
   <rect x="106" y="228" width="230" height="30" rx="15" fill="#656572"/>
