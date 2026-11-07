@@ -431,7 +431,7 @@ const emptyText = computed(() => {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed var(--card-border);
 }
 
 .y-label {
@@ -586,7 +586,7 @@ svg {
   height: 240px;
   padding: 16px;
 
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed var(--empty-border);
   border-radius: var(--radius-control);
   color: var(--text-secondary);
   text-align: center;
