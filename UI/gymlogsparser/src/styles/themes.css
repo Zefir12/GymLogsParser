@@ -76,6 +76,9 @@
   /* --- dashboard: cards, tracks, segmented controls --- */
   --card-bg: var(--night-grey-8);
   --card-border: var(--night-grey-6);
+  --row-divider: rgba(162, 164, 184, 0.1); /* --night-grey-1 tint */
+  --empty-border: var(--night-grey-5);
+  --option-hover-bg: rgba(162, 164, 184, 0.1); /* --night-grey-1 tint */
   --header-bg: var(--night-grey-8);
   --track: var(--night-grey-7);
   --segment-bg: var(--night-ground);

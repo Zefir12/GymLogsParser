@@ -75,7 +75,10 @@
 
   /* --- dashboard: cards, tracks, segmented controls --- */
   --card-bg: var(--brand-ground);
-  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.08); /* also chart gridlines */
+  --row-divider: rgba(255, 255, 255, 0.06); /* table rows inside a card */
+  --empty-border: rgba(255, 255, 255, 0.12); /* dashed empty-state boxes */
+  --option-hover-bg: rgba(255, 255, 255, 0.08); /* picker list hover/selected */
   --header-bg: var(--brand-ground);
   --track: #1d1e22;
   --segment-bg: #18181b;

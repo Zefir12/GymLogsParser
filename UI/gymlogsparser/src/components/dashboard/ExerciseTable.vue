@@ -123,7 +123,7 @@ td:last-child {
 }
 
 tbody tr {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--row-divider);
 }
 
 tbody tr.active {

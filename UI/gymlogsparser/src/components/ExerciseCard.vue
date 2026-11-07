@@ -271,7 +271,7 @@ function selectExercise(exerciseId: string) {
 
 .exercise-option:hover,
 .exercise-option.selected {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--option-hover-bg);
 }
 
 .exercise-option-name {

@@ -124,7 +124,7 @@ h1 {
   gap: 12px;
   padding: var(--card-pad);
 
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed var(--empty-border);
   border-radius: var(--radius-card);
   color: var(--text-secondary);
 }
