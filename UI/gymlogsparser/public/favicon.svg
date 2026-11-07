@@ -3,8 +3,8 @@
   <rect x="96" y="340" width="170" height="60" rx="30" fill="#2E3036"/>
   <rect x="96" y="226" width="250" height="60" rx="30" fill="#4A4D55"/>
   <rect x="96" y="112" width="320" height="60" rx="30" fill="#5E626B"/>
-  <polyline points="266,370 346,256 416,142" fill="none" stroke="#FF6A1A" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="266" cy="370" r="40" fill="#FF6A1A" stroke="#141416" stroke-width="14"/>
-  <circle cx="346" cy="256" r="40" fill="#FF6A1A" stroke="#141416" stroke-width="14"/>
-  <circle cx="416" cy="142" r="52" fill="#FF6A1A" stroke="#141416" stroke-width="14"/>
+  <polyline points="266,370 346,256 416,142" fill="none" stroke="#6CCB3A" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="266" cy="370" r="40" fill="#6CCB3A" stroke="#141416" stroke-width="14"/>
+  <circle cx="346" cy="256" r="40" fill="#6CCB3A" stroke="#141416" stroke-width="14"/>
+  <circle cx="416" cy="142" r="52" fill="#6CCB3A" stroke="#141416" stroke-width="14"/>
 </svg>

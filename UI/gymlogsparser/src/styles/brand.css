@@ -37,15 +37,16 @@
   --night-grey-4: #656572;
   --night-grey-5: #575762;
   --night-grey-6: #444348;
-  --night-grey-7: #282729;
-  --night-grey-8: #222122;
-  --night-ground: #191819;
+  --night-grey-7: #1f1e20; /* darkened in #61, was #282729 */
+  --night-grey-8: #161516; /* darkened in #61, was #222122 */
+  --night-ground: #0e0e0f; /* darkened in #61, was #191819 */
 
-  /* Żabka: green */
-  --night-green-pale: #d0f59b;
-  --night-green: #9bc770;
-  --night-green-mid: #4d7c2a;
-  --night-green-deep: #326216;
+  /* Żabka: green, saturated in #61 (was #d0f59b, #9bc770,
+     #4d7c2a, #326216: too washed out on the dark base) */
+  --night-green-pale: #9be564;
+  --night-green: #6ccb3a;
+  --night-green-mid: #4fae22;
+  --night-green-deep: #2e6b12;
 
   /* Window glow: yellow */
   --night-glow: #dfd079;
