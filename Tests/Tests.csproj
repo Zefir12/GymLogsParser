@@ -10,6 +10,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- Infrastructure is compiled against EF Core Relational 10.0.11 (through the
+             PrivateAssets Design package); without this the test output gets Npgsql's older
+             Relational and fails to load. Keep in step with the EF Core version. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
         <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
         <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />

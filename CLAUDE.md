@@ -42,7 +42,7 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
   vue-router, Vite, plain CSS with design tokens (no CSS framework, no component
   library). Package manager is pnpm (`pnpm-lock.yaml`); don't add a package-lock.json.
 - No other NuGet or npm dependency without asking zefir. Keep package versions aligned
-  across the three csproj files (EF Core 10.0.x in both Infrastructure and GymLogsParser).
+  across the three csproj files (EF Core 10.0.x in Infrastructure and GymLogsParser, and EF Core Relational in Tests).
 - Tests: one xUnit v3 project, `Tests/` (#49), against real PostgreSQL (Testcontainers
   locally, a service container in CI); every test gets its own copy of a migrated
   database. Test-only packages (xunit.v3, Microsoft.NET.Test.Sdk,
