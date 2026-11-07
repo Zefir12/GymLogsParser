@@ -47,6 +47,8 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
   locally, a service container in CI); every test gets its own copy of a migrated
   database. Test-only packages (xunit.v3, Microsoft.NET.Test.Sdk,
   xunit.runner.visualstudio, Testcontainers.PostgreSql) live only in Tests.csproj.
+  `global.json` switches `dotnet test` to Microsoft.Testing.Platform (xunit.v3 needs it
+  on the .NET 10 SDK); it pins no SDK version.
   No linters exist yet; don't add one (or a second test project) as a side effect of
   another issue; propose it as an issue.
 
