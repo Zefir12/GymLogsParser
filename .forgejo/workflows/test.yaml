@@ -52,12 +52,10 @@ jobs:
         uses: https://data.forgejo.org/actions/checkout@v6
 
       - name: Restore
-        shell: bash
-        run: set -o pipefail; dotnet restore GymLogsParser.sln 2>&1 | tee -a ci.log
+        run: dotnet restore GymLogsParser.sln
 
       - name: Build
-        shell: bash
-        run: set -o pipefail; dotnet build GymLogsParser.sln --no-restore 2>&1 | tee -a ci.log
+        run: dotnet build GymLogsParser.sln --no-restore
 
       - name: Wait for Postgres
         shell: bash # for /dev/tcp
@@ -69,25 +67,4 @@ jobs:
           echo "Postgres did not become ready"; exit 1
 
       - name: Test
-        shell: bash
-        run: set -o pipefail; dotnet test GymLogsParser.sln --no-build 2>&1 | tee -a ci.log
-
-      # TEMPORARY diagnostic (bot can't read job logs): first error lines as commit statuses.
-      - name: Report errors
-        if: failure()
-        shell: bash
-        env:
-          TOKEN: ${{ forgejo.token }}
-          SHA: ${{ forgejo.event.pull_request.head.sha }}
-        run: |
-          [ -f ci.log ] || echo "no ci.log" > ci.log
-          grep -E "error|Error|Failed|failed|\[FAIL\]|Exception" ci.log | grep -v "0 Error" | head -n 6 > errs.txt || true
-          [ -s errs.txt ] || tail -n 6 ci.log > errs.txt
-          n=0
-          while IFS= read -r line; do
-            n=$((n+1))
-            desc=$(printf '%s' "$line" | sed -E 's# \[/[^]]*\]$##; s#^.*/(Tests|Infrastructure|Core|GymLogsParser)/#\1/#' | tr -d '"\\\t\r' | tr -s ' ' | cut -c1-138)
-            curl -sS -o /dev/null -X POST -H "Authorization: token $TOKEN" -H 'Content-Type: application/json' \
-              --data "{\"state\":\"failure\",\"context\":\"diag/$n\",\"description\":\"$desc\"}" \
-              "${FORGEJO_SERVER_URL:-https://git.zefirlabs.net}/api/v1/repos/${FORGEJO_REPOSITORY}/statuses/$SHA" || true
-          done < errs.txt
+        run: dotnet test GymLogsParser.sln --no-build
