@@ -16,7 +16,7 @@ const STORAGE_KEY = "gymlogs:theme";
 /** Page background per palette, for the browser UI (`theme-color`). */
 const themeColor: Record<ThemeId, string> = {
   default: "#141416",
-  night: "#191819",
+  night: "#0e0e0f",
 };
 
 /** Brand glyph per palette: an image can't read CSS tokens. */

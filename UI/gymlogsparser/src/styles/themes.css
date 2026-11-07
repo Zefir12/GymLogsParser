@@ -8,11 +8,14 @@
    (assets/brand/glyph-night.svg), picked by the theme store.
    ============================================================ */
 
-/* Blokowisko night: dark and grey, green as the rare accent,
-   window-glow yellow only for warnings and key highlights.
-   Contrast on --card-bg (#222122): primary 9.5:1, secondary
-   6.5:1, tertiary 5.5:1, accent 8.3:1, warning 10.3:1 (WCAG AA);
-   --text-quiet is 3.8:1, for hints only, as in the default. */
+/* Blokowisko night: near-black and grey, a saturated green as
+   the rare accent, window-glow yellow only for warnings and key
+   highlights. Surfaces, darkest first (#61): page #0e0e0f,
+   header and cards #161516, tracks #1f1e20.
+   Contrast on --card-bg (#161516): primary 10.8:1, secondary
+   7.4:1, tertiary 6.2:1, accent 8.9:1, success 12.0:1, warning
+   11.7:1 (WCAG AA); --text-quiet is 4.3:1, for hints only, as in
+   the default. --on-accent on --accent is 9.4:1. */
 :root[data-theme="night"] {
   /* --- brand primitives the tokens read directly --- */
   --brand-ground: var(--night-ground);
@@ -45,21 +48,21 @@
 
   /* --- accent: Żabka green, on primary actions and active
      states only --- */
-  --accent-rgb: 155, 199, 112; /* --night-green */
+  --accent-rgb: 108, 203, 58; /* --night-green */
   --accent: var(--night-green);
-  --accent-strong: #b6de86; /* halfway to --night-green-pale, hover */
+  --accent-strong: #84de52; /* --night-green, brighter, hover */
   --accent-deep: var(--night-green-mid);
   --accent-soft: rgba(var(--accent-rgb), 0.12);
   --accent-border: rgba(var(--accent-rgb), 0.35);
   --accent-text: var(--night-green);
   --on-accent: var(--night-ground);
-  --on-accent-muted: rgba(25, 24, 25, 0.55); /* --night-ground */
+  --on-accent-muted: rgba(14, 14, 15, 0.55); /* --night-ground */
 
   /* --- status --- */
-  --success-rgb: 208, 245, 155; /* --night-green-pale */
+  --success-rgb: 155, 229, 100; /* --night-green-pale */
   --success: var(--night-green-pale);
-  --success-bg: rgba(208, 245, 155, 0.08);
-  --success-border: rgba(208, 245, 155, 0.25);
+  --success-bg: rgba(155, 229, 100, 0.08);
+  --success-border: rgba(155, 229, 100, 0.25);
 
   --warning-rgb: 223, 208, 121; /* --night-glow */
   --warning: var(--night-glow);
@@ -68,7 +71,7 @@
 
   /* toasts: success in Żabka green; the error toast keeps the
      default red for the same reason as --danger */
-  --toast-success-rgb: 155, 199, 112; /* --night-green */
+  --toast-success-rgb: 108, 203, 58; /* --night-green */
 
   /* --- navigation --- */
   --nav-active-bg: rgba(162, 164, 184, 0.08); /* --night-grey-1 tint */
@@ -88,17 +91,17 @@
   --spark-idle: var(--night-grey-6);
   --spark-recent: var(--night-grey-3);
   --spark-active: var(--heat-3);
-  --exercise-head-bg: #293b1d; /* 45% --night-green-deep over --card-bg */
+  --exercise-head-bg: #213c14; /* 45% --night-green-deep over --card-bg */
 
   /* heatmap scale, rest day to most sets: grey to green */
   --heat-0: var(--track);
-  --heat-1: #283b1d; /* 40% --night-green-deep over --card-bg */
+  --heat-1: #203714; /* 40% --night-green-deep over --card-bg */
   --heat-2: var(--night-green-deep);
   --heat-3: var(--night-green-mid);
   --heat-4: var(--night-green);
 
   /* --- theme.css aliases with literal values --- */
-  --surface: rgba(34, 33, 34, 0.6); /* --night-grey-8, translucent */
+  --surface: rgba(22, 21, 22, 0.6); /* --night-grey-8, translucent */
   --surface-solid: var(--night-grey-8);
   --surface-hover: rgba(162, 164, 184, 0.05);
   --border: rgba(162, 164, 184, 0.12);
