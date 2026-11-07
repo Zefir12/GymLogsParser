@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import Toast from "@/components/Toast.vue";
 import ThemeSwitcher from "@/components/ThemeSwitcher.vue";
-import logoGlyph from "@/assets/brand/glyph-on-dark.svg";
+import { useThemeStore } from "@/stores/theme";
 import { storeToRefs } from "pinia";
 import { RouterLink, RouterView } from "vue-router";
 import { useWorkoutStore } from "./stores/workout";
 
 const workoutStore = useWorkoutStore();
+const themeStore = useThemeStore();
 import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 
@@ -19,7 +20,7 @@ const { error, success } = storeToRefs(workoutStore);
   <header class="site-header">
     <div class="site-header-inner">
       <RouterLink to="/" class="site-brand">
-        <img :src="logoGlyph" class="site-logo" alt="" aria-hidden="true" />
+        <img :src="themeStore.glyph" class="site-logo" alt="" aria-hidden="true" />
         GymLogs
       </RouterLink>
 
@@ -148,7 +149,7 @@ const { error, success } = storeToRefs(workoutStore);
 
 .nav-link.active {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--nav-active-bg);
   font-weight: 500;
 }
 

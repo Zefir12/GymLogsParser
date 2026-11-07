@@ -1223,7 +1223,7 @@ function barWidth(totalSets: number): number {
 .exercise-card__flag {
   padding: 1px 6px;
 
-  border: 1px solid rgba(230, 180, 80, 0.35);
+  border: 1px solid var(--warning-border);
   border-radius: var(--radius-xs);
   color: var(--warning);
   font-size: 0.66rem;
