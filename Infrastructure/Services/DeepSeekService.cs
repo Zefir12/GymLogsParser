@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 using Core.Configuration;
 using Core.Models;
 using GymLog.Api.AI;
-using Infrastructure.Helpers;
 using Infrastructure.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -16,7 +15,7 @@ using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Services;
 
-public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, IExerciseCatalogService exerciseCatalog, ILogger<DeepSeekService> logger) : IDeepSeekService
+public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOptions> options, IMemoryCache cache, IExerciseCatalogService exerciseCatalog, IBodyweightService bodyweights, ILogger<DeepSeekService> logger) : IDeepSeekService
 {
     private readonly DeepSeekOptions _options = options.Value;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
@@ -391,7 +390,7 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
     Return JSON only.
     """;
 
-    public async Task<ParseWorkoutResult> ParseWorkoutAsync(string rawText, bool barbellWeightsArePerSide, CancellationToken cancellationToken = default)
+    public async Task<ParseWorkoutResult> ParseWorkoutAsync(string ownerId, string rawText, bool barbellWeightsArePerSide, CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
         if (string.IsNullOrWhiteSpace(rawText)) throw new ArgumentException("Workout text is required.", nameof(rawText));
@@ -399,14 +398,18 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         var normalized = rawText.Trim();
         
         var workoutDate = TryExtractWorkoutDate(normalized); 
-        var bodyweightKg = workoutDate.HasValue ? BodyweightHistory.GetInterpolated(workoutDate.Value) : (double?)null;
+        var bodyweightKg = workoutDate.HasValue
+            ? (await bodyweights.GetHistoryAsync(ownerId, cancellationToken)).GetInterpolated(workoutDate.Value)
+            : null;
         logger.LogInformation("Pre-cache setup: {Ms}ms", sw.ElapsedMilliseconds);
         
         var catalog = await exerciseCatalog.GetAsync(cancellationToken);
 
         // The catalog version is part of the key: after an exercise is added or
         // edited, the same log is parsed again against the new list.
-        var cacheKey = $"workout-ai:{ComputeHash(normalized)}:{barbellWeightsArePerSide}:{catalog.Version}";
+        // Per user: the prompt carries the user's bodyweight, and one user's parse must
+        // never be served to another.
+        var cacheKey = $"workout-ai:{ComputeHash(ownerId)}:{ComputeHash(normalized)}:{barbellWeightsArePerSide}:{catalog.Version}";
         if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached)) { return cached!; }
         logger.LogInformation("Cache check: {Ms}ms", sw.ElapsedMilliseconds);
         

@@ -1,21 +1,25 @@
 using Core.Models;
+using GymLogsParser.Extensions;
 using Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymLogsParser.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/ai")]
 public sealed class AiController(IDeepSeekService deepSeek) : ControllerBase
 {
     [HttpPost("parse-workout")]
     public async Task<ActionResult<ParseWorkoutResponse>> ParseWorkout([FromBody] ParseWorkoutRequest request, CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
         if (string.IsNullOrWhiteSpace(request.Text)) { return BadRequest(new { error = "Workout text is required." }); }
 
         try
         {
-            var result = await deepSeek.ParseWorkoutAsync( request.Text, request.BarbellWeightsArePerSide, cancellationToken);
+            var result = await deepSeek.ParseWorkoutAsync(ownerId, request.Text, request.BarbellWeightsArePerSide, cancellationToken);
             return Ok(new ParseWorkoutResponse
             {
                 Workout = result.Workout,

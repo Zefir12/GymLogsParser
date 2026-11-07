@@ -12,6 +12,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Cardio> CardioEntries => Set<Cardio>();
     public DbSet<ExerciseDefinitionEntity> ExerciseDefinitions => Set<ExerciseDefinitionEntity>();
     public DbSet<MuscleTargetEntity> MuscleTargets => Set<MuscleTargetEntity>();
+    public DbSet<BodyweightEntryEntity> BodyweightEntries => Set<BodyweightEntryEntity>();
+
+    /// <summary>Length of the <c>OwnerId</c> columns (the OIDC <c>sub</c>).</summary>
+    public const int OwnerIdMaxLength = 255;
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,10 +26,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.ToTable("workouts");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Id) .ValueGeneratedOnAdd();
+            entity.Property(x => x.OwnerId).HasMaxLength(OwnerIdMaxLength).IsRequired();
             entity.Property(x => x.Title) .HasMaxLength(200);
             entity.Property(x => x.Notes);
             entity.HasMany(x => x.Persons).WithOne(x => x.Workout).HasForeignKey(x => x.WorkoutId).OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(x => x.Exercises).WithOne(x => x.Workout).HasForeignKey(x => x.WorkoutId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.OwnerId, x.Date });
         });
 
         modelBuilder.Entity<People>(entity =>
@@ -94,8 +100,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<MuscleTargetEntity>(entity =>
         {
             entity.ToTable("muscle_targets");
-            entity.HasKey(x => x.MuscleGroup);
+            entity.HasKey(x => new { x.OwnerId, x.MuscleGroup });
+            entity.Property(x => x.OwnerId).HasMaxLength(OwnerIdMaxLength);
             entity.Property(x => x.MuscleGroup).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<BodyweightEntryEntity>(entity =>
+        {
+            entity.ToTable("bodyweight_entries");
+            entity.HasKey(x => new { x.OwnerId, x.Date });
+            entity.Property(x => x.OwnerId).HasMaxLength(OwnerIdMaxLength);
+            entity.Property(x => x.WeightKg).HasPrecision(5, 2);
         });
     }
 }

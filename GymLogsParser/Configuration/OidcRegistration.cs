@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Infrastructure.Interfaces;
 
 namespace GymLogsParser.Configuration;
 
@@ -28,6 +29,21 @@ public static class OidcRegistration
                     o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
                     o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = 401; return Task.CompletedTask; };
                     o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = 403; return Task.CompletedTask; };
+                    // Data from before per-user ownership (#45) goes to the configured legacy
+                    // owner on their first authenticated request, also for sessions that
+                    // started before the deploy. A no-op for everyone else and after that.
+                    o.Events.OnValidatePrincipal = async ctx =>
+                    {
+                        var principal = ctx.Principal;
+                        if (principal?.FindFirst("sub")?.Value is not { Length: > 0 } sub) return;
+
+                        var verified = principal.FindFirst("email_verified")?.Value;
+                        bool? emailVerified = verified is null ? null : string.Equals(verified, "true", StringComparison.OrdinalIgnoreCase);
+
+                        await ctx.HttpContext.RequestServices
+                            .GetRequiredService<ILegacyDataClaimService>()
+                            .ClaimIfLegacyOwnerAsync(sub, principal.FindFirst("email")?.Value, emailVerified, ctx.HttpContext.RequestAborted);
+                    };
                 })
                 .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, o =>
                 {
