@@ -6,7 +6,7 @@ PROJECT=GymLogsParser/GymLogsParser.csproj
 DOCKERFILE=GymLogsParser/Dockerfile
 CONTEXT=.
 
-.PHONY: dev run restore build-local clean test check build push publish
+.PHONY: dev run restore build-local clean test check ui-mock build push publish
 
 # Load .env if it exists.
 ifneq (,$(wildcard .env))
@@ -48,6 +48,24 @@ test:
 # No tests: those are `make test` (and CI).
 check:
 	docker build -f check.Dockerfile --target check --progress=plain $(CONTEXT)
+
+# Frontend only, against the in-memory mock API (UI/gymlogsparser/mock, #66): no .NET,
+# no database, no login. Runs the Vite dev server (`--mode mock`, HMR on) in node:24 as
+# the current user, so node_modules stays yours, published on HOST:PORT. Passes none of
+# .env into the container. Stop it with Ctrl-C or `docker stop gymlogs-ui-mock`.
+#   make ui-mock HOST=192.168.1.10 PORT=5173
+HOST ?= 127.0.0.1
+PORT ?= 5173
+PNPM_VERSION ?= 10
+ui-mock:
+	docker run --rm --init --name gymlogs-ui-mock \
+		--user "$$(id -u):$$(id -g)" \
+		-v "$(CURDIR)/UI/gymlogsparser:/ui" -w /ui \
+		-p "$(HOST):$(PORT):$(PORT)" \
+		-e HOME=/tmp -e COREPACK_HOME=/tmp/corepack -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+		-e VITE_API_URL=/api -e VITE_ALLOWED_HOSTS="$(HOST)" -e VITE_USE_POLLING=1 \
+		node:24 sh -c 'corepack pnpm@$(PNPM_VERSION) install --frozen-lockfile --store-dir /tmp/pnpm-store --config.confirm-modules-purge=false \
+			&& exec corepack pnpm@$(PNPM_VERSION) exec vite --mode mock --host 0.0.0.0 --port $(PORT) --strictPort'
 
 # -------------------------------------------------------------------
 # Docker
