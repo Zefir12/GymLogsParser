@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
+import { useAuthStore } from "@/stores/auth";
 import { useExerciseCatalogStore } from "@/stores/exercises";
 import type {
   ExerciseCategory,
@@ -10,6 +11,10 @@ import type {
 import { MUSCLES, isMuscle, muscleGroupOptions } from "@/utils/muscleGroups";
 
 const catalog = useExerciseCatalogStore();
+const auth = useAuthStore();
+
+/** The catalog is shared: only admins add or change exercises (#47); the API enforces it. */
+const canEdit = computed(() => auth.hasRole("admin"));
 
 const search = ref("");
 
@@ -213,14 +218,18 @@ onMounted(() => catalog.reload());
   <div class="exercises-view">
     <header class="page-header">
       <h1>Exercises</h1>
-      <p class="subtitle">
+      <p v-if="canEdit" class="subtitle">
         The catalog the parser matches your logs against. Add the names you
         actually write as aliases; new exercises and aliases are used from the
         next parse on.
       </p>
+      <p v-else class="subtitle">
+        The catalog the parser matches your logs against. It is shared by
+        everyone, so only admins can add or change exercises.
+      </p>
     </header>
 
-    <form class="panel" @submit.prevent="save">
+    <form v-if="canEdit" class="panel" @submit.prevent="save">
       <h2>{{ editingId ? "Edit exercise" : "New exercise" }}</h2>
 
       <div class="grid">
@@ -415,7 +424,12 @@ onMounted(() => catalog.reload());
               </span>
             </div>
           </div>
-          <button type="button" class="button" @click="startEdit(d)">
+          <button
+            v-if="canEdit"
+            type="button"
+            class="button"
+            @click="startEdit(d)"
+          >
             Edit
           </button>
         </li>
