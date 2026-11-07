@@ -56,13 +56,15 @@ machine (logged in as that machine's bot, config in `~/.config/fj/config.yaml`).
   with the attribution lines from your session instructions.
 
 ## CI status
-Two workflows. .forgejo/workflows/test.yaml (`test (dotnet)`) builds the solution and
-runs the tests on every PR that touches Core, Infrastructure, GymLogsParser, Tests or
-the solution, and on pushes to develop and main. .forgejo/workflows/image.yaml runs on
+Two workflows. .forgejo/workflows/test.yaml has two jobs behind a `changes` job:
+`test (dotnet)` builds the solution, runs the EF pending-model-changes check and the
+tests on every PR that touches Core, Infrastructure, GymLogsParser, Tests or the
+solution; `check (frontend)` runs `pnpm install --frozen-lockfile && pnpm build` on
+every PR that touches UI/gymlogsparser. Pushes to develop and main run both. .forgejo/workflows/image.yaml runs on
 a PR only when it touches a csproj, GymLogsParser/Dockerfile, .dockerignore or the
 workflow, and then only builds the image (kaniko, no push); pushes to develop push the
-image, pushes to main push it and deploy to production through nudge. Frontend-only PRs
-have no CI status: the local `pnpm build` gate (CLAUDE.md "Commands") is the only check.
+image, pushes to main push it and deploy to production through nudge. A job the PR
+doesn't need shows as skipped.
 
     fj api "repos/{owner}/{repo}/commits/$(git rev-parse HEAD)/status" \
       --jq '.state, (.statuses[] | "\(.status)  \(.context)")'

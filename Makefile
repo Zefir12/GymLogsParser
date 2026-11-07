@@ -6,7 +6,7 @@ PROJECT=GymLogsParser/GymLogsParser.csproj
 DOCKERFILE=GymLogsParser/Dockerfile
 CONTEXT=.
 
-.PHONY: dev run restore build-local clean test build push publish
+.PHONY: dev run restore build-local clean test check build push publish
 
 # Load .env if it exists.
 ifneq (,$(wildcard .env))
@@ -40,6 +40,14 @@ clean:
 # and drop databases on (never the production one).
 test:
 	dotnet test GymLogsParser.sln
+
+# The pre-commit gate in containers, for a host with no dotnet or Node (check.Dockerfile):
+# dotnet build, `dotnet ef migrations has-pending-model-changes` and the frontend's
+# `pnpm install --frozen-lockfile && pnpm build`. Needs only Docker with BuildKit. The repo goes
+# in as the build context (minus .env files, see .dockerignore); it never reaches a database.
+# No tests: those are `make test` (and CI).
+check:
+	docker build -f check.Dockerfile --target check --progress=plain $(CONTEXT)
 
 # -------------------------------------------------------------------
 # Docker

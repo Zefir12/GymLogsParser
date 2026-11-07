@@ -188,11 +188,15 @@ push a new image and deploy again (nudge deploys with `--pull always`).
 ## CI
 
 `.forgejo/workflows/image.yaml` builds the API image with kaniko (the runners have no
-Docker socket). The frontend is not built here; Cloudflare Pages builds it.
+Docker socket). The frontend is not deployed from here; Cloudflare Pages builds it.
 
-`.forgejo/workflows/test.yaml` builds the solution and runs the tests (`Tests/`) in the
-.NET SDK image, against a PostgreSQL service container, on pull requests that touch the
-backend and on pushes to `develop` and `main`. It does not gate the image or the deploy.
+`.forgejo/workflows/test.yaml` checks before merge. Its `test (dotnet)` job builds the
+solution, runs `dotnet ef migrations has-pending-model-changes` and the tests (`Tests/`)
+in the .NET SDK image, against a PostgreSQL service container; its `check (frontend)`
+job runs `pnpm install --frozen-lockfile && pnpm build` (vue-tsc type-check and Vite
+build) in node:24. A pull request runs the job for each side it touches (a `changes` job
+decides); pushes to `develop` and `main` run both. It does not gate the image or the
+deploy. `make check` runs the same builds locally in containers (check.Dockerfile).
 
 - Push to `main` or `develop`: builds and pushes, tags as in step 1.
 - Pull request touching `GymLogsParser/Dockerfile`, the root `.dockerignore`, a
