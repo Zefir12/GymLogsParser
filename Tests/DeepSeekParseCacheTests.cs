@@ -69,6 +69,21 @@ public sealed class DeepSeekParseCacheTests : IDisposable
         Assert.Equal(TestUsers.Bob, Assert.Single(_bodyweights.Owners));
     }
 
+    [Fact]
+    public async Task ChangedBodyweight_IsParsedAgain()
+    {
+        // #46: a measurement added after a parse changes the prompt, so the cached parse
+        // (built without it) must not be served.
+        var before = await _service.ParseWorkoutAsync(TestUsers.Alice, Log, false, TestContext.Current.CancellationToken);
+        _bodyweights.History = new BodyweightHistory([(new DateOnly(2026, 11, 1), 82.5)]);
+        var after = await _service.ParseWorkoutAsync(TestUsers.Alice, Log, false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, _handler.Calls);
+        Assert.NotSame(before, after);
+        Assert.Same(after, await _service.ParseWorkoutAsync(TestUsers.Alice, Log, false, TestContext.Current.CancellationToken));
+        Assert.Equal(2, _handler.Calls);
+    }
+
     public void Dispose() => _cache.Dispose();
 
     private sealed class CountingHandler : HttpMessageHandler
@@ -97,11 +112,26 @@ public sealed class DeepSeekParseCacheTests : IDisposable
     {
         public List<string> Owners { get; } = [];
 
+        /// <summary>What every user's history holds; empty by default.</summary>
+        public BodyweightHistory History { get; set; } = BodyweightHistory.Empty;
+
         public Task<BodyweightHistory> GetHistoryAsync(string ownerId, CancellationToken cancellationToken = default)
         {
             Owners.Add(ownerId);
-            return Task.FromResult(BodyweightHistory.Empty);
+            return Task.FromResult(History);
         }
+
+        public Task<IReadOnlyList<BodyweightEntry>> ListAsync(string ownerId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<BodyweightWriteResult> AddAsync(string ownerId, BodyweightEntry entry, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<BodyweightWriteResult> UpdateAsync(string ownerId, DateOnly date, BodyweightEntry entry, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> DeleteAsync(string ownerId, DateOnly date, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class StubCatalog : IExerciseCatalogService

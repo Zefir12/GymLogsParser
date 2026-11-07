@@ -35,6 +35,11 @@ const routes = [
     component: () => import("@/views/ExercisesView.vue"),
   },
   {
+    path: "/bodyweight",
+    name: "bodyweight",
+    component: () => import("@/views/BodyweightView.vue"),
+  },
+  {
     path: "/admin",
     component: () => import("@/views/AdminView.vue"),
     meta: { roles: ["admin"] },

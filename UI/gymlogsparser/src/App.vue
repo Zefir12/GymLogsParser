@@ -37,6 +37,9 @@ const { error, success } = storeToRefs(workoutStore);
         <RouterLink to="/exercises" class="nav-link" active-class="active">
           Exercises
         </RouterLink>
+        <RouterLink to="/bodyweight" class="nav-link" active-class="active">
+          Bodyweight
+        </RouterLink>
       </nav>
 
       <div class="account">
