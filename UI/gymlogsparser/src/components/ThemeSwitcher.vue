@@ -29,7 +29,7 @@ select {
   padding: 0 var(--card-pad-sm);
 
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-select);
   background: var(--segment-bg);
   color: var(--text-secondary);
 
@@ -48,10 +48,6 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
-select:focus-visible {
-  outline: 2px solid var(--accent-border);
-  outline-offset: 1px;
-}
 
 .sr-only {
   position: absolute;

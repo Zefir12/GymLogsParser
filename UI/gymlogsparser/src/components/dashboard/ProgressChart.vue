@@ -35,6 +35,32 @@ const metricLabel: Record<DashboardMetric, string> = {
 /** SVG user space; the svg stretches to its box (preserveAspectRatio="none"). */
 const SIZE = 1000;
 
+/** Half-width in days of the centred window of the min–max band behind the line. */
+const BAND_HALF_DAYS = 10;
+
+/** 3-point moving average, so the band's edges are soft instead of stepped. */
+function smooth(values: number[]) {
+  return values.map((_, i) => {
+    const near = values.slice(Math.max(0, i - 1), i + 2);
+    return near.reduce((s, n) => s + n, 0) / near.length;
+  });
+}
+
+/** Least-squares line through the points: value = a + b * day. */
+function linearFit(points: { day: number; value: number }[]) {
+  const n = points.length;
+  const mx = points.reduce((s, p) => s + p.day, 0) / n;
+  const my = points.reduce((s, p) => s + p.value, 0) / n;
+  let sxy = 0;
+  let sxx = 0;
+  for (const p of points) {
+    sxy += (p.day - mx) * (p.value - my);
+    sxx += (p.day - mx) ** 2;
+  }
+  const b = sxx ? sxy / sxx : 0;
+  return (day: number) => my + b * (day - mx);
+}
+
 const title = computed(
   () =>
     `${store.chartExercise?.name ?? store.muscle} · ${metricLabel[store.metric]}`,
@@ -59,7 +85,31 @@ const chart = computed(() => {
   const line = points
     .map((p, i) => `${i ? "L" : "M"}${x(p.day).toFixed(1)} ${y(p.value).toFixed(1)}`)
     .join(" ");
-  const area = `${line} L${x(points[points.length - 1].day).toFixed(1)} ${SIZE} L${x(points[0].day).toFixed(1)} ${SIZE} Z`;
+
+  // Band: lowest to highest value within ±10 days of each session, smoothed.
+  const near = points.map((p) =>
+    points
+      .filter((q) => Math.abs(q.day - p.day) <= BAND_HALF_DAYS)
+      .map((q) => q.value),
+  );
+  const top = smooth(near.map((v) => Math.max(...v)));
+  const bottom = smooth(near.map((v) => Math.min(...v)));
+  const pt = (day: number, v: number) => `${x(day).toFixed(1)} ${y(v).toFixed(1)}`;
+  const band =
+    points.map((p, i) => `${i ? "L" : "M"}${pt(p.day, top[i])}`).join(" ") +
+    " " +
+    points
+      .map((p, i) => `L${pt(p.day, bottom[i])}`)
+      .reverse()
+      .join(" ") +
+    " Z";
+
+  // Trend: straight least-squares line from the first to the last session.
+  const fit = linearFit(points);
+  const firstDay = points[0].day;
+  const lastDay = points[points.length - 1].day;
+  const trend = `M${pt(firstDay, fit(firstDay))} L${pt(lastDay, fit(lastDay))}`;
+  const perMonth = (fit(lastDay) - fit(firstDay)) / Math.max(1, lastDay - firstDay) * 30;
 
   const dots = points.map((p) => ({
     key: p.day,
@@ -103,7 +153,9 @@ const chart = computed(() => {
 
   return {
     line,
-    area,
+    band,
+    trend,
+    trendLabel: `Trend ${perMonth >= 0 ? "+" : "−"}${formatKg(Math.abs(perMonth))}/month`,
     dots,
     yTicks,
     xTicks,
@@ -293,7 +345,8 @@ const emptyText = computed(() => {
           preserveAspectRatio="none"
           aria-hidden="true"
         >
-          <path :d="chart.area" class="area" />
+          <path :d="chart.band" class="band" />
+          <path :d="chart.trend" class="trend" />
           <path :d="chart.line" class="line" />
         </svg>
 
@@ -334,6 +387,8 @@ const emptyText = computed(() => {
       </div>
       <div class="key">
         <span class="hint">Tap a point to open that session</span>
+        <span class="key-band" /> Range (±10 days)
+        <span class="key-trend" /> {{ chart.trendLabel }}
         <span class="key-dot pr" /> PR session
       </div>
     </div>
@@ -453,9 +508,17 @@ svg {
   overflow: visible;
 }
 
-.area {
+.band {
   fill: var(--accent);
-  fill-opacity: 0.12;
+  fill-opacity: 0.08;
+}
+
+.trend {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  vector-effect: non-scaling-stroke;
 }
 
 .line {
@@ -563,6 +626,22 @@ svg {
 .key-dot {
   display: inline-block;
   border-radius: 50%;
+}
+
+.key-band {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  margin-left: 8px;
+  border-radius: 2px;
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.key-trend {
+  display: inline-block;
+  width: 16px;
+  margin-left: 8px;
+  border-top: 1.5px dashed var(--text-secondary);
 }
 
 .key-dot.pr {

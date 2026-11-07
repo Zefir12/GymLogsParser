@@ -41,12 +41,21 @@ const tiles = computed(() =>
       spark: weeks.map((v) => `${Math.round((v / max) * 100)}%`),
       active: store.muscle === group,
     };
-  }),
+  }).sort((a, b) => rank(a.group) - rank(b.group) || Number(b.value) - Number(a.value)),
 );
+
+/** All first, then muscles by sets/wk (most first), Cardio (minutes) last. */
+function rank(group: string) {
+  return group === ALL ? -1 : group === CARDIO ? 1 : 0;
+}
 </script>
 
 <template>
-  <section aria-label="Body parts" class="tiles">
+  <section
+    aria-label="Body parts"
+    class="tiles"
+    :style="{ '--tile-cols': Math.ceil(tiles.length / 2) }"
+  >
     <button
       v-for="tile in tiles"
       :key="tile.group"
@@ -57,14 +66,16 @@ const tiles = computed(() =>
       @click="store.setMuscle(tile.group)"
     >
       <span class="tile-head">
-        <span class="tile-label">{{ tile.label }}</span>
+        <span class="tile-label" :title="tile.label">{{ tile.label }}</span>
+        <!-- always rendered, empty for All/Cardio, so every tile lines up -->
         <span
-          v-if="tile.status"
           class="tile-status"
-          :class="tile.status === 'On target' ? 'good' : 'warn'"
+          :class="
+            tile.status ? (tile.status === 'On target' ? 'good' : 'warn') : null
+          "
           :title="tile.statusTitle"
         >
-          {{ tile.status }}
+          {{ tile.status ?? "\u00a0" }}
         </span>
       </span>
 
@@ -99,6 +110,13 @@ const tiles = computed(() =>
   gap: var(--card-gap);
 }
 
+/* Wide screens: every tile in two rows. */
+@media (min-width: 1100px) {
+  .tiles {
+    grid-template-columns: repeat(var(--tile-cols, 10), minmax(0, 1fr));
+  }
+}
+
 .tile {
   display: flex;
   flex-direction: column;
@@ -107,7 +125,7 @@ const tiles = computed(() =>
   padding: var(--card-pad-sm);
 
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-tile);
   background: var(--card-bg);
   color: var(--text-primary);
 
@@ -124,18 +142,20 @@ const tiles = computed(() =>
   background: rgba(var(--accent-rgb), 0.07);
 }
 
+/* name on one line, status always on the line below it */
 .tile-head {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 2px 6px;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
+  min-width: 0;
 }
 
 .tile-label {
+  overflow: hidden;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .tile-status,

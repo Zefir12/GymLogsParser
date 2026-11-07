@@ -85,8 +85,15 @@
   --segment-on: var(--brand-row-1);
   --bar-idle: var(--brand-row-4);
   --bar-label: #c9ccd3; /* weekly-sets row labels */
+  /* dropdown chevron (an image can't read tokens, so the grey is baked in) */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8f99' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --bar-on-target: var(--success); /* weekly-sets bar inside the target range */
+  --bar-over-target: #d9614f; /* weekly-sets bar above the target range */
+  --over-target-text: #e8806f;
   --target-band-bg: rgba(var(--success-rgb), 0.12); /* weekly target range */
   --target-band-edge: rgba(var(--success-rgb), 0.35);
+  --target-band-hit-bg: rgba(var(--success-rgb), 0.3); /* range when the bar is in it */
+  --target-band-hit-edge: rgba(var(--success-rgb), 0.7);
   --spark-idle: var(--brand-row-2);
   --spark-recent: #8b8f99;
   --spark-active: var(--heat-2);
@@ -106,7 +113,9 @@
   --radius-md: 3px;
   --radius-lg: 3px;
   --radius-xl: 4px;
-  --radius-card: 10px; /* dashboard cards and tiles */
+  --radius-card: 10px; /* dashboard cards */
+  --radius-tile: 4px; /* body part tiles */
+  --radius-select: 4px; /* dropdowns */
   --radius-control: 7px; /* dashboard buttons, segmented controls */
   --radius-pill: 999px;
 
