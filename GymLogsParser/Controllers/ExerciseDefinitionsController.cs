@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Core.Models;
 using Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymLogsParser.Controllers;
@@ -10,14 +11,18 @@ namespace GymLogsParser.Controllers;
 /// <summary>
 /// The exercise catalog: what the workout editor's picker offers and what the
 /// parsing prompt lists as allowed IDs (with aliases).
+/// The catalog is shared by every user: anyone signed in may read it, only admins
+/// (authestra role <c>admin</c>) may add or change exercises (#47).
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/exercises/definitions")]
 public sealed partial class ExerciseDefinitionsController(IExerciseCatalogService catalog) : ControllerBase
 {
     private const int MaxAliases = 30;
     private const int MaxAliasLength = 100;
 
+    /// <summary>The whole catalog, for every signed-in user.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ExerciseDefinition>>> List(CancellationToken cancellationToken)
     {
@@ -27,8 +32,9 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
 
     /// <summary>
     /// Adds an exercise. <c>id</c> is optional: when empty it is derived from the name
-    /// ("Smith Machine Squat" becomes "smith-machine-squat").
+    /// ("Smith Machine Squat" becomes "smith-machine-squat"). Admins only.
     /// </summary>
+    [Authorize(Policy = "admin")]
     [HttpPost]
     public async Task<ActionResult<ExerciseDefinition>> Create([FromBody] ExerciseDefinition? request, CancellationToken cancellationToken)
     {
@@ -53,8 +59,9 @@ public sealed partial class ExerciseDefinitionsController(IExerciseCatalogServic
     /// <summary>
     /// Updates an exercise's name, category, muscle group, barbell flag, aliases and
     /// muscle shares.
-    /// The ID never changes: logged workouts refer to it.
+    /// The ID never changes: logged workouts refer to it. Admins only.
     /// </summary>
+    [Authorize(Policy = "admin")]
     [HttpPut("{id}")]
     public async Task<ActionResult<ExerciseDefinition>> Update(string id, [FromBody] ExerciseDefinition? request, CancellationToken cancellationToken)
     {
