@@ -1,13 +1,19 @@
-# Builds the solution and runs the tests (Tests/, see `make test`) in the .NET SDK image.
-# Pull requests that touch the backend run it before merge; pushes to develop and main run it
-# again on the merged code. It doesn't gate the image build or the production deploy
-# (image.yaml): a red run here is for zefir to see before merging.
+# The checks before merge, as in CLAUDE.md "Commands" (`make check` runs the build parts of
+# it locally in containers, check.Dockerfile):
+#   test (dotnet)     builds the solution, checks that the EF model matches the migrations
+#                     and runs the tests (Tests/, see `make test`) in the .NET SDK image
+#   check (frontend)  pnpm install --frozen-lockfile + pnpm build (vue-tsc -b, Vite build)
+# A pull request runs the jobs whose side it touches (the `changes` job decides); pushes to
+# develop and main run both again on the merged code. It doesn't gate the image build or the
+# production deploy (image.yaml), and Cloudflare Pages builds the frontend on its own: a red
+# run here is for zefir to see before merging.
 name: test
 
 on:
   push:
     branches: [develop, main]
   pull_request:
+    # Keep in step with the patterns in the `changes` job.
     paths:
       - Core/**
       - Infrastructure/**
@@ -15,6 +21,7 @@ on:
       - Tests/**
       - GymLogsParser.sln
       - global.json
+      - UI/gymlogsparser/**
       - .forgejo/workflows/test.yaml
 
 concurrency:
@@ -22,8 +29,48 @@ concurrency:
   cancel-in-progress: ${{ forgejo.event_name == 'pull_request' }}
 
 jobs:
+  # Which side a pull request touches: the path filter above is per workflow, not per job.
+  # Pushes, and any doubt (a failed diff), run both.
+  changes:
+    name: changes
+    runs-on: docker
+    timeout-minutes: 5
+    container:
+      image: node:24 # checkout needs node
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      frontend: ${{ steps.diff.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: https://data.forgejo.org/actions/checkout@v6
+        with:
+          fetch-depth: 0 # the base branch, for the diff
+
+      - name: Changed paths
+        id: diff
+        shell: bash
+        env:
+          EVENT: ${{ forgejo.event_name }}
+          BASE_REF: ${{ forgejo.base_ref }}
+        run: |
+          backend=true
+          frontend=true
+          if [ "$EVENT" = pull_request ] \
+            && files=$(git diff --name-only "origin/$BASE_REF...HEAD"); then
+            printf '%s\n' "$files"
+            grep -Eq '^(Core|Infrastructure|GymLogsParser|Tests)/|^GymLogsParser\.sln$|^global\.json$|^\.forgejo/workflows/test\.yaml$' \
+              <<<"$files" || backend=false
+            grep -Eq '^UI/gymlogsparser/|^\.forgejo/workflows/test\.yaml$' \
+              <<<"$files" || frontend=false
+          fi
+          echo "backend=$backend frontend=$frontend"
+          echo "backend=$backend" >> "$FORGEJO_OUTPUT"
+          echo "frontend=$frontend" >> "$FORGEJO_OUTPUT"
+
   test:
     name: test (dotnet)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: docker
     timeout-minutes: 20
     container:
@@ -41,6 +88,8 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
+      # Keep in step with the EF Core packages in the csproj files and check.Dockerfile.
+      DOTNET_EF_VERSION: 10.0.11
       GYMLOGS_TEST_DATABASE: Host=postgres;Port=5432;Database=gymlogs;Username=gymlogs;Password=gymlogsci
 
     steps:
@@ -57,6 +106,14 @@ jobs:
       - name: Build
         run: dotnet build GymLogsParser.sln --no-restore
 
+      # The tests would catch this too (EF refuses to migrate with pending model changes),
+      # but this names the problem directly. It never connects to the database.
+      - name: EF model matches the migrations
+        run: |
+          dotnet tool install --tool-path /tmp/dotnet-tools dotnet-ef --version "$DOTNET_EF_VERSION"
+          /tmp/dotnet-tools/dotnet-ef migrations has-pending-model-changes \
+            --project Infrastructure --startup-project GymLogsParser --no-build
+
       - name: Wait for Postgres
         shell: bash # for /dev/tcp
         run: |
@@ -68,3 +125,32 @@ jobs:
 
       - name: Test
         run: dotnet test GymLogsParser.sln --no-build
+
+  frontend:
+    name: check (frontend)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: docker
+    timeout-minutes: 15
+    container:
+      image: node:24
+    env:
+      # Keep in step with check.Dockerfile.
+      PNPM_VERSION: "10"
+    defaults:
+      run:
+        working-directory: UI/gymlogsparser
+
+    steps:
+      - name: Checkout
+        uses: https://data.forgejo.org/actions/checkout@v6
+
+      - name: Install pnpm
+        run: npm install -g "pnpm@$PNPM_VERSION"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # vue-tsc -b type-check, then the Vite build (no VITE_API_URL needed to build).
+      - name: Build
+        run: pnpm build

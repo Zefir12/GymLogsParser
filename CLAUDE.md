@@ -31,9 +31,10 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
   `latest`/`main-<sha>` and deploy to production through nudge, by digest. **Merging to
   main is a production deploy.** On a PR, image.yaml only builds the image, and only
   when the PR touches a csproj, the Dockerfile, .dockerignore or the workflow.
-  `.forgejo/workflows/test.yaml` builds the solution and runs the tests on every PR that
-  touches the backend (and on pushes to develop/main), against a Postgres service
-  container. Nothing type-checks the frontend on a PR.
+  `.forgejo/workflows/test.yaml` builds the solution, runs the EF pending-model-changes
+  check and the tests on every PR that touches the backend, against a Postgres service
+  container, and runs `pnpm build` on every PR that touches UI/gymlogsparser (a
+  `changes` job picks the side; pushes to develop/main run both).
 
 ## Stack
 - .NET 10 (`net10.0`, C# 14: primary constructors, collection expressions, `extension`
@@ -77,7 +78,9 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
                               database), TestUsers (signed-in principals, seed helpers),
                               controller/service tests per area
 - .forgejo/workflows/image.yaml  image build + prod deploy through nudge
-- .forgejo/workflows/test.yaml   dotnet build + tests on PRs and develop/main pushes
+- .forgejo/workflows/test.yaml   dotnet build + EF check + tests, and the frontend
+                              `pnpm build`, on PRs and develop/main pushes
+- check.Dockerfile            `make check`: the build gates in the SDK and Node images
 
 ## Commands
 Run from the repo root unless noted.
@@ -93,6 +96,10 @@ Run from the repo root unless noted.
   and drop databases on (never production). The fixture runs every migration, and EF
   fails a migration run when the model has pending changes, so the tests also catch a
   snapshot that doesn't match the model.
+- `make check`: the build gates in containers, for a host without dotnet or Node:
+  `dotnet build`, the EF pending-model-changes check and `pnpm install --frozen-lockfile
+  && pnpm build`, in the .NET SDK and node:24 images (check.Dockerfile, `docker build`
+  with the repo as context minus .env files; no database, no tests). Needs Docker only.
 - `make build-local`: Release build of the API; `make build`: local Docker image
 Before committing: `dotnet build` for backend changes (plus the EF check for model or
 migration changes), `make test` for backend changes, `pnpm build` for frontend changes.
@@ -100,7 +107,8 @@ Fix failures yourself. Backend changes that affect per-user data or other behavi
 tests cover get a test in `Tests/`.
 
 This host usually has **no dotnet, dotnet-ef, node or pnpm**. The test workflow then is
-the only build and test run: check its status on the PR (forgejo skill, CI status). If a gate can't run here,
+the only build and test run: check its status on the PR (forgejo skill, CI status);
+it covers backend and frontend changes. If a gate can't run here,
 don't install anything and don't run it through docker by hand: say exactly which
 checks did not run in the PR's "How it was tested", list the commands for zefir
 (as in #21, #36, #39, #40), and be extra careful with types and migration files.
