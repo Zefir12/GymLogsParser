@@ -1,0 +1,97 @@
+/* ============================================================
+   PALETTES (#51)
+   The default palette is the Log Ascent look in tokens.css and
+   theme.css. Every other palette is a [data-theme] block on
+   <html> that only overrides existing token values: no new
+   tokens, no component changes. The theme store (stores/theme.ts)
+   sets the attribute.
+   ============================================================ */
+
+/* Blokowisko night: dark and grey, green as the rare accent,
+   window-glow yellow only for warnings and key highlights.
+   Contrast on --card-bg (#222122): primary 9.5:1, secondary
+   6.5:1, tertiary 5.5:1, accent 8.3:1, warning 10.3:1 (WCAG AA);
+   --text-quiet is 3.8:1, for hints only, as in the default. */
+:root[data-theme="night"] {
+  /* --- brand primitives the tokens read directly --- */
+  --brand-ground: var(--night-ground);
+  --brand-accent: var(--night-green);
+  --brand-light: #c4c6d6; /* --night-grey-1, lightened for headings */
+
+  --brand-row-1: var(--night-grey-7);
+  --brand-row-2: var(--night-grey-6);
+  --brand-row-3: var(--night-grey-5);
+  --brand-row-4: var(--night-grey-3);
+
+  /* --- surface --- */
+  --bg-void: var(--night-ground);
+  --bg-base: var(--night-ground);
+
+  --glass-soft: rgba(162, 164, 184, 0.025);
+  --glass: rgba(162, 164, 184, 0.045);
+  --glass-strong: rgba(162, 164, 184, 0.075);
+
+  --glass-border: rgba(162, 164, 184, 0.12);
+  --glass-border-strong: rgba(162, 164, 184, 0.2);
+
+  --shadow-glass: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  /* --- text --- */
+  --text-primary: var(--brand-light);
+  --text-secondary: var(--night-grey-1);
+  --text-tertiary: var(--night-grey-2);
+  --text-quiet: var(--night-grey-3);
+
+  /* --- accent: Żabka green, on primary actions and active
+     states only --- */
+  --accent-rgb: 155, 199, 112; /* --night-green */
+  --accent: var(--night-green);
+  --accent-strong: #b6de86; /* halfway to --night-green-pale, hover */
+  --accent-deep: var(--night-green-mid);
+  --accent-soft: rgba(var(--accent-rgb), 0.12);
+  --accent-border: rgba(var(--accent-rgb), 0.35);
+  --accent-text: var(--night-green);
+  --on-accent: var(--night-ground);
+
+  /* --- status --- */
+  --success: var(--night-green-pale);
+  --success-bg: rgba(208, 245, 155, 0.08);
+  --success-border: rgba(208, 245, 155, 0.25);
+
+  --warning: var(--night-glow);
+
+  /* --danger keeps the default rose: the sets have no red */
+
+  /* --- dashboard: cards, tracks, segmented controls --- */
+  --card-bg: var(--night-grey-8);
+  --card-border: var(--night-grey-6);
+  --header-bg: var(--night-grey-8);
+  --track: var(--night-grey-7);
+  --segment-bg: var(--night-ground);
+  --segment-on: var(--night-grey-6);
+  --bar-idle: var(--night-grey-5);
+  --spark-idle: var(--night-grey-6);
+  --spark-recent: var(--night-grey-3);
+  --spark-active: var(--heat-3);
+  --exercise-head-bg: #293b1d; /* 45% --night-green-deep over --card-bg */
+
+  /* heatmap scale, rest day to most sets: grey to green */
+  --heat-0: var(--track);
+  --heat-1: #283b1d; /* 40% --night-green-deep over --card-bg */
+  --heat-2: var(--night-green-deep);
+  --heat-3: var(--night-green-mid);
+  --heat-4: var(--night-green);
+
+  /* --- theme.css aliases with literal values --- */
+  --surface: rgba(34, 33, 34, 0.6); /* --night-grey-8, translucent */
+  --surface-solid: var(--night-grey-8);
+  --surface-hover: rgba(162, 164, 184, 0.05);
+  --border: rgba(162, 164, 184, 0.12);
+  --border-strong: rgba(162, 164, 184, 0.2);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+
+  --win: var(--night-green);
+  --draw: var(--night-grey-3);
+
+  color-scheme: dark;
+}

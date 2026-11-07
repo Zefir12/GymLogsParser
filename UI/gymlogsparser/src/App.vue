@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Toast from "@/components/Toast.vue";
+import ThemeSwitcher from "@/components/ThemeSwitcher.vue";
 import logoGlyph from "@/assets/brand/glyph-on-dark.svg";
 import { storeToRefs } from "pinia";
 import { RouterLink, RouterView } from "vue-router";
@@ -38,6 +39,7 @@ const { error, success } = storeToRefs(workoutStore);
       </nav>
 
       <div class="account">
+        <ThemeSwitcher />
         <span v-if="auth.user" class="user">{{ auth.user.name }}</span>
         <button
           v-if="auth.isAuthenticated"
