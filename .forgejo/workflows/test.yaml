@@ -14,6 +14,7 @@ on:
       - GymLogsParser/**
       - Tests/**
       - GymLogsParser.sln
+      - global.json
       - .forgejo/workflows/test.yaml
 
 concurrency:
