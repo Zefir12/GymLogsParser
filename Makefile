@@ -6,7 +6,7 @@ PROJECT=GymLogsParser/GymLogsParser.csproj
 DOCKERFILE=GymLogsParser/Dockerfile
 CONTEXT=.
 
-.PHONY: dev run restore build-local clean build push publish
+.PHONY: dev run restore build-local clean test build push publish
 
 # Load .env if it exists.
 ifneq (,$(wildcard .env))
@@ -34,6 +34,12 @@ build-local: restore
 
 clean:
 	dotnet clean $(PROJECT)
+
+# Tests (Tests/). They start a throwaway PostgreSQL with Testcontainers, so Docker must be
+# running, unless GYMLOGS_TEST_DATABASE is the connection string of a server they may create
+# and drop databases on (never the production one).
+test:
+	dotnet test GymLogsParser.sln
 
 # -------------------------------------------------------------------
 # Docker

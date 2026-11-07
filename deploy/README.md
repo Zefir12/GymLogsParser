@@ -190,6 +190,10 @@ push a new image and deploy again (nudge deploys with `--pull always`).
 `.forgejo/workflows/image.yaml` builds the API image with kaniko (the runners have no
 Docker socket). The frontend is not built here; Cloudflare Pages builds it.
 
+`.forgejo/workflows/test.yaml` builds the solution and runs the tests (`Tests/`) in the
+.NET SDK image, against a PostgreSQL service container, on pull requests that touch the
+backend and on pushes to `develop` and `main`. It does not gate the image or the deploy.
+
 - Push to `main` or `develop`: builds and pushes, tags as in step 1.
 - Pull request touching `GymLogsParser/Dockerfile`, the root `.dockerignore`, a
   `.csproj` or the workflow: builds only, never pushes.

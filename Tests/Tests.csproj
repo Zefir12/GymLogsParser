@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- xunit.v3 test projects are executables. -->
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Infrastructure is compiled against EF Core Relational 10.0.11 (through the
+             PrivateAssets Design package); without this the test output gets Npgsql's older
+             Relational and fails to load. Keep in step with the EF Core version. -->
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+        <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+        <PackageReference Include="xunit.v3" Version="4.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\GymLogsParser\GymLogsParser.csproj" />
+    </ItemGroup>
+
+</Project>
