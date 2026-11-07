@@ -50,22 +50,31 @@ check:
 	docker build -f check.Dockerfile --target check --progress=plain $(CONTEXT)
 
 # Frontend only, against the in-memory mock API (UI/gymlogsparser/mock, #66): no .NET,
-# no database, no login. Runs the Vite dev server (`--mode mock`, HMR on) in node:24 as
-# the current user, so node_modules stays yours, published on HOST:PORT. Passes none of
-# .env into the container. Stop it with Ctrl-C or `docker stop gymlogs-ui-mock`.
-#   make ui-mock HOST=192.168.1.10 PORT=5173
-HOST ?= 127.0.0.1
-PORT ?= 5173
+# no database, no login. Runs the Vite dev server (`--mode mock`, HMR on) in node:24,
+# published on MOCK_HOST:MOCK_PORT. Passes none of .env into the container. Stop it with
+# Ctrl-C or `docker stop gymlogs-ui-mock`.
+#   make ui-mock MOCK_HOST=192.168.1.10 MOCK_PORT=5173
+# node_modules must stay owned by you: rootful docker runs the container as your uid/gid
+# (--user); rootless docker already maps container root to you, and --user there would map
+# to a subuid that can't write the bind mount (#68), so it's left out.
+# The pnpm store and corepack's pnpm download live in the named volume
+# gymlogs-ui-mock-cache (mounted on /tmp, which keeps the image's 1777 mode), so later runs
+# don't download everything again. `docker volume rm gymlogs-ui-mock-cache` clears it.
+MOCK_HOST ?= 127.0.0.1
+MOCK_PORT ?= 5173
 PNPM_VERSION ?= 10
+# Recursive (=), so `docker info` runs only when ui-mock expands it.
+UI_MOCK_USER = $(if $(findstring rootless,$(shell docker info --format '{{.SecurityOptions}}' 2>/dev/null)),,--user "$(shell id -u):$(shell id -g)")
 ui-mock:
 	docker run --rm --init --name gymlogs-ui-mock \
-		--user "$$(id -u):$$(id -g)" \
+		$(UI_MOCK_USER) \
 		-v "$(CURDIR)/UI/gymlogsparser:/ui" -w /ui \
-		-p "$(HOST):$(PORT):$(PORT)" \
+		-v gymlogs-ui-mock-cache:/tmp \
+		-p "$(MOCK_HOST):$(MOCK_PORT):$(MOCK_PORT)" \
 		-e HOME=/tmp -e COREPACK_HOME=/tmp/corepack -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-		-e VITE_API_URL=/api -e VITE_ALLOWED_HOSTS="$(HOST)" -e VITE_USE_POLLING=1 \
+		-e VITE_API_URL=/api -e VITE_ALLOWED_HOSTS="$(MOCK_HOST)" -e VITE_USE_POLLING=1 \
 		node:24 sh -c 'corepack pnpm@$(PNPM_VERSION) install --frozen-lockfile --store-dir /tmp/pnpm-store --config.confirm-modules-purge=false \
-			&& exec corepack pnpm@$(PNPM_VERSION) exec vite --mode mock --host 0.0.0.0 --port $(PORT) --strictPort'
+			&& exec corepack pnpm@$(PNPM_VERSION) exec vite --mode mock --host 0.0.0.0 --port $(MOCK_PORT) --strictPort'
 
 # -------------------------------------------------------------------
 # Docker

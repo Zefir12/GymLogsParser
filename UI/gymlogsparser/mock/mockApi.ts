@@ -298,7 +298,8 @@ function route(state: State, method: string, path: string, query: URLSearchParam
   if (is("GET", "auth/login")) {
     state.signedIn = true;
     const returnUrl = query.get("returnUrl") ?? "/";
-    return { status: 302, redirect: returnUrl.startsWith("/") && !returnUrl.startsWith("//") ? returnUrl : "/" };
+    // Local paths only: "//host" and "/\host" are protocol-relative to browsers.
+    return { status: 302, redirect: /^\/(?![/\\])/.test(returnUrl) ? returnUrl : "/" };
   }
   if (is("POST", "auth/logout")) {
     state.signedIn = false;
