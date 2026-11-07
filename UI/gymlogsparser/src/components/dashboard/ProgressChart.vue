@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 
 import SegmentedControl from "@/components/dashboard/SegmentedControl.vue";
-import SessionModal from "@/components/dashboard/SessionModal.vue";
-import { useDashboardStore } from "@/stores/dashboard";
+import WorkoutPickerModal from "@/components/dashboard/WorkoutPickerModal.vue";
+import { useDashboardStore, type WorkoutChoice } from "@/stores/dashboard";
 import type { DashboardMetric } from "@/types/dashboard";
 import {
   CARDIO,
@@ -19,6 +20,7 @@ import {
 } from "@/utils/dashboard";
 
 const store = useDashboardStore();
+const router = useRouter();
 
 const metrics: { value: DashboardMetric; label: string }[] = [
   { value: "e1rm", label: "Est. 1RM" },
@@ -113,6 +115,7 @@ const chart = computed(() => {
 
   const dots = points.map((p) => ({
     key: p.day,
+    day: p.day,
     /** Position as a fraction of the plot box, for hit testing. */
     fx: x(p.day) / SIZE,
     fy: y(p.value) / SIZE,
@@ -165,7 +168,7 @@ const chart = computed(() => {
   };
 });
 
-// --- picking a session: hover/tap/keyboard, then open it in a modal ---
+// --- picking a session: hover/tap/keyboard, then open its workout in the editor ---
 
 const plotEl = ref<HTMLElement | null>(null);
 /** Index into chart.dots of the highlighted session, if any. */
@@ -269,24 +272,26 @@ function onPlotKeydown(e: KeyboardEvent) {
   e.preventDefault();
 }
 
-interface OpenSession {
-  exerciseId: string;
-  exerciseName: string;
-  workoutIds: string[];
-}
+/** Set when a point covers more than one workout that day (#73). */
+const picker = ref<{ dateLabel: string; choices: WorkoutChoice[] } | null>(null);
 
-const session = ref<OpenSession | null>(null);
+function openWorkout(id: string) {
+  picker.value = null;
+  router.push({ name: "edit", query: { workout: id } });
+}
 
 function openDot(index: number) {
   const dot = chart.value?.dots[index];
-  const exercise = store.chartExercise;
-  if (!dot || !exercise || dot.workoutIds.length === 0) return;
+  if (!dot || dot.workoutIds.length === 0) return;
   active.value = index;
-  session.value = {
-    exerciseId: exercise.exerciseId,
-    exerciseName: exercise.name,
-    workoutIds: dot.workoutIds,
-  };
+  if (dot.workoutIds.length === 1) {
+    openWorkout(dot.workoutIds[0]!);
+  } else {
+    picker.value = {
+      dateLabel: formatDay(dot.day),
+      choices: store.workoutChoices(dot.workoutIds),
+    };
+  }
 }
 
 const emptyText = computed(() => {
@@ -327,7 +332,7 @@ const emptyText = computed(() => {
         :class="{ pickable: activeDot }"
         tabindex="0"
         role="group"
-        :aria-label="`${title}. Use the arrow keys to pick a session and Enter to open it.`"
+        :aria-label="`${title}. Use the arrow keys to pick a session and Enter to edit its workout.`"
         @pointermove="onPointerMove"
         @pointerleave="onPointerLeave"
         @click="onPlotClick"
@@ -371,7 +376,7 @@ const emptyText = computed(() => {
         >
           {{ activeDot.tip }}
           <span class="tip__hint">{{
-            activeDot.workoutIds.length ? "Click to view or edit" : ""
+            activeDot.workoutIds.length ? "Click to edit the workout" : ""
           }}</span>
         </div>
       </div>
@@ -386,7 +391,7 @@ const emptyText = computed(() => {
         </span>
       </div>
       <div class="key">
-        <span class="hint">Tap a point to open that session</span>
+        <span class="hint">Tap a point to edit that workout</span>
         <span class="key-band" /> Range (±10 days)
         <span class="key-trend" /> {{ chart.trendLabel }}
         <span class="key-dot pr" /> PR session
@@ -395,13 +400,12 @@ const emptyText = computed(() => {
 
     <div v-else class="empty">{{ emptyText }}</div>
 
-    <SessionModal
-      v-if="session"
-      :exercise-id="session.exerciseId"
-      :exercise-name="session.exerciseName"
-      :workout-ids="session.workoutIds"
-      @close="session = null"
-      @saved="store.load()"
+    <WorkoutPickerModal
+      v-if="picker"
+      :date-label="picker.dateLabel"
+      :choices="picker.choices"
+      @pick="openWorkout"
+      @close="picker = null"
     />
   </section>
 </template>
