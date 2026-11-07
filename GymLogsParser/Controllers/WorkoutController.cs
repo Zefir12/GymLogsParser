@@ -1,4 +1,5 @@
 using Core.Models;
+using GymLogsParser.Extensions;
 using Infrastructure;
 using Infrastructure.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -7,7 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GymLogsParser.Controllers;
 
+/// <summary>
+/// The signed-in user's workouts. Every query is filtered by the owner (OIDC <c>sub</c>),
+/// so another user's workout IDs answer 404 (#45).
+/// </summary>
 [ApiController]
+[Authorize]
 [Route("api/workouts")]
 public sealed class WorkoutsController(AppDbContext db) : ControllerBase
 {
@@ -16,11 +22,13 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
     /// with just enough aggregate info to render without loading every set.
     /// </summary>
     [HttpGet]
-    [Authorize(Policy = "admin")]
     public async Task<ActionResult<List<WorkoutSummary>>> List(CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
+
         var workouts = await db.Workouts
             .AsNoTracking()
+            .Where(w => w.OwnerId == ownerId)
             .Include(w => w.Exercises)
                 .ThenInclude(e => e.Sets)
             .OrderByDescending(w => w.Date)
@@ -46,13 +54,16 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
         return Ok(summaries);
     }
 
+    /// <summary>Saves a new workout owned by the signed-in user.</summary>
     [HttpPost]
     public async Task<ActionResult<Guid>> Create([FromBody] WorkoutLog? workout, CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
         if (workout is null) {  return BadRequest(new { error = "Workout is required." }); }
 
         var entity = new Workout
         {
+            OwnerId = ownerId,
             Date = workout.Date,
             Title = workout.Title,
             Notes = workout.Notes,
@@ -108,9 +119,11 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
         return CreatedAtAction(nameof(GetById),  new { id = entity.Id }, entity.Id);
     }
 
+    /// <summary>One of the signed-in user's workouts; 404 for anyone else's.</summary>
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<WorkoutLog>> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
         var workout = await db.Workouts
             .AsNoTracking()
             .Include(x => x.Persons)
@@ -118,7 +131,7 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
                 .ThenInclude(x => x.Sets)
             .Include(x => x.Exercises)
                 .ThenInclude(x => x.Cardio)
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(x => x.Id == id && x.OwnerId == ownerId, cancellationToken);
 
         if (workout is null) { return NotFound(); }
 
@@ -178,10 +191,12 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
     /// Full replace of a workout's editable content (metadata, persons, and every
     /// exercise/set/cardio row). The edit screen always sends the complete workout
     /// back, so we drop the old children and rebuild them rather than diffing.
+    /// Only the owner can update it; 404 for anyone else.
     /// </summary>
     [HttpPut("{id:guid}")]
     public async Task<ActionResult> Update(Guid id, [FromBody] WorkoutLog? workout, CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
         if (workout is null) { return BadRequest(new { error = "Workout is required." }); }
 
         var entity = await db.Workouts
@@ -190,7 +205,7 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
                 .ThenInclude(x => x.Sets)
             .Include(x => x.Exercises)
                 .ThenInclude(x => x.Cardio)
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(x => x.Id == id && x.OwnerId == ownerId, cancellationToken);
 
         if (entity is null) { return NotFound(); }
 
@@ -256,10 +271,12 @@ public sealed class WorkoutsController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Deletes one of the signed-in user's workouts; 404 for anyone else's.</summary>
     [HttpDelete("{id:guid}")]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var entity = await db.Workouts.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
+        var entity = await db.Workouts.SingleOrDefaultAsync(x => x.Id == id && x.OwnerId == ownerId, cancellationToken);
         if (entity is null) { return NotFound(); }
 
         db.Workouts.Remove(entity);

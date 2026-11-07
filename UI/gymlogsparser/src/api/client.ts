@@ -7,6 +7,7 @@ import type {
 } from "@/types/exercise";
 import type { DashboardData, DashboardRange } from "@/types/dashboard";
 import type { MuscleTarget, MuscleTargetUpdate } from "@/types/muscleTargets";
+import type { BodyweightEntry } from "@/types/bodyweight";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
   api.post<ParseWorkoutResponse>("/ai/parse-workout", {
@@ -65,6 +66,24 @@ export const getMuscleTargets = () => api.get<MuscleTarget[]>("/muscle-targets")
 /** Stores the listed groups' ranges and returns the full list. */
 export const updateMuscleTargets = (targets: MuscleTargetUpdate[]) =>
   api.put<MuscleTarget[]>("/muscle-targets", targets);
+
+/** The signed-in user's bodyweight measurements, newest first. */
+export const getBodyweightEntries = () =>
+  api.get<BodyweightEntry[]>("/bodyweight-entries");
+
+/** Adds a measurement; 409 when there is already one on that date. */
+export const addBodyweightEntry = (entry: BodyweightEntry) =>
+  api.post<BodyweightEntry>("/bodyweight-entries", entry);
+
+/** Changes the measurement on `date`; `entry.date` may differ to move it. */
+export const updateBodyweightEntry = (date: string, entry: BodyweightEntry) =>
+  api.put<BodyweightEntry>(
+    `/bodyweight-entries/${encodeURIComponent(date)}`,
+    entry,
+  );
+
+export const deleteBodyweightEntry = (date: string) =>
+  api.delete(`/bodyweight-entries/${encodeURIComponent(date)}`);
 
 export interface WorkoutSummary {
   id: string;

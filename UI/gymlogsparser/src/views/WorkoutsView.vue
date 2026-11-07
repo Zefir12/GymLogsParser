@@ -762,7 +762,7 @@ function barWidth(totalSets: number): number {
   background-image:
     radial-gradient(480px 220px at 15% 0%, var(--accent-dim), transparent 70%),
     repeating-conic-gradient(
-      rgba(255, 255, 255, 0.025) 0% 25%,
+      var(--glass-soft) 0% 25%,
       transparent 0% 50%
     );
   background-size:
@@ -1223,7 +1223,7 @@ function barWidth(totalSets: number): number {
 .exercise-card__flag {
   padding: 1px 6px;
 
-  border: 1px solid rgba(230, 180, 80, 0.35);
+  border: 1px solid var(--warning-border);
   border-radius: var(--radius-xs);
   color: var(--warning);
   font-size: 0.66rem;

@@ -186,7 +186,7 @@ h2 {
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #c9ccd3;
+  color: var(--bar-label);
 
   text-align: left;
 }
@@ -217,9 +217,9 @@ h2 {
   position: absolute;
   top: -3px;
   bottom: -3px;
-  background: rgba(134, 198, 163, 0.12);
-  border-left: 1px solid rgba(134, 198, 163, 0.35);
-  border-right: 1px solid rgba(134, 198, 163, 0.35);
+  background: var(--target-band-bg);
+  border-left: 1px solid var(--target-band-edge);
+  border-right: 1px solid var(--target-band-edge);
 }
 
 .fill {

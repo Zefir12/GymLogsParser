@@ -1351,8 +1351,8 @@ const titleId = `exercise-dialog-title-${Math.random().toString(36).slice(2, 9)}
 }
 
 .badge--warn {
-  border-color: rgba(230, 180, 80, 0.35);
-  background: rgba(230, 180, 80, 0.08);
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
   color: var(--warning);
 }
 
@@ -1382,9 +1382,9 @@ kbd {
   margin: 10px 0 0;
   padding: 8px 10px;
 
-  border: 1px solid rgba(230, 180, 80, 0.3);
+  border: 1px solid var(--warning-border-soft);
   border-radius: var(--radius-md);
-  background: rgba(230, 180, 80, 0.06);
+  background: var(--warning-bg-soft);
 
   color: var(--warning);
   font-size: 0.78rem;

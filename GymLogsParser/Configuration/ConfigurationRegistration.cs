@@ -17,6 +17,7 @@ public static class ConfigurationRegistration
         {
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<DeepSeekOptions>( configuration.GetSection("DeepSeek"));
+            services.Configure<OwnershipOptions>(configuration.GetSection("Ownership"));
             return services;
         }
     }

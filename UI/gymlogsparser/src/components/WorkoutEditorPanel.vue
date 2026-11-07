@@ -268,7 +268,7 @@ const {
   width: 11px;
   height: 11px;
 
-  border: 2px solid rgba(26, 10, 0, 0.55);
+  border: 2px solid var(--on-accent-muted);
   border-top-color: transparent;
 
   border-radius: 50%;

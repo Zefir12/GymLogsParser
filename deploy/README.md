@@ -120,6 +120,7 @@ On the client used by `Auth__ClientId`:
 | `API_BIND`, `API_PORT` | no | Where the API port is published, default `127.0.0.1:8085`. |
 | `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
 | `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
+| `Ownership__LegacyOwner` | no | OIDC `sub` or email of the user who gets the data from before per-user data (see [Per-user data](#per-user-data)). Default in appsettings.json: zefir's account email. |
 
 The whole stack env is also handed to the `api` container (`env_file`), so any other
 `Section__Key` override works without changing the compose file.
@@ -153,6 +154,22 @@ The `api` container must be able to reach the database host:
 
 `deploy/compose.yaml` does not include these; add the one you need to the `api` service.
 
+### Per-user data
+
+Every workout, weekly target range and bodyweight measurement belongs to one user: the
+OIDC `sub` of whoever is signed in (#45). Users only see and edit their own; the
+exercise catalog is shared by everyone.
+
+The migration that introduced this (`PerUserData`) marked every existing row with the
+placeholder owner `legacy`. On the first signed-in request of the user named by
+`Ownership__LegacyOwner` (matched against their `sub`, or their email unless the token
+says it is unverified), the API moves all `legacy` rows to that user's `sub`, once.
+Until then nobody sees them. Check with:
+
+```sql
+SELECT "OwnerId", count(*) FROM workouts GROUP BY 1;
+```
+
 ## 5. First deploy
 
 1. Push the image (step 1) and set up authestra, the registry and the stack (steps 2-3).
@@ -171,7 +188,15 @@ push a new image and deploy again (nudge deploys with `--pull always`).
 ## CI
 
 `.forgejo/workflows/image.yaml` builds the API image with kaniko (the runners have no
-Docker socket). The frontend is not built here; Cloudflare Pages builds it.
+Docker socket). The frontend is not deployed from here; Cloudflare Pages builds it.
+
+`.forgejo/workflows/test.yaml` checks before merge. Its `test (dotnet)` job builds the
+solution, runs `dotnet ef migrations has-pending-model-changes` and the tests (`Tests/`)
+in the .NET SDK image, against a PostgreSQL service container; its `check (frontend)`
+job runs `pnpm install --frozen-lockfile && pnpm build` (vue-tsc type-check and Vite
+build) in node:24. A pull request runs the job for each side it touches (a `changes` job
+decides); pushes to `develop` and `main` run both. It does not gate the image or the
+deploy. `make check` runs the same builds locally in containers (check.Dockerfile).
 
 - Push to `main` or `develop`: builds and pushes, tags as in step 1.
 - Pull request touching `GymLogsParser/Dockerfile`, the root `.dockerignore`, a

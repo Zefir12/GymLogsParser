@@ -1,5 +1,7 @@
 using Core.Models;
+using GymLogsParser.Extensions;
 using Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymLogsParser.Controllers;
@@ -7,15 +9,21 @@ namespace GymLogsParser.Controllers;
 /// <summary>
 /// Weekly target ranges (working sets per week) per muscle group, shown on the
 /// dashboard's weekly sets per body part. Cardio and Warm-up have no target.
+/// Each user has their own ranges.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/muscle-targets")]
 public sealed class MuscleTargetsController(IMuscleTargetService targets) : ControllerBase
 {
     /// <summary>Every muscle group in display order, with its range and its default range.</summary>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<MuscleTarget>>> List(CancellationToken cancellationToken) =>
-        Ok(await targets.GetAsync(cancellationToken));
+    public async Task<ActionResult<IReadOnlyList<MuscleTarget>>> List(CancellationToken cancellationToken)
+    {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
+
+        return Ok(await targets.GetAsync(ownerId, cancellationToken));
+    }
 
     /// <summary>
     /// Sets the ranges of the listed groups (<c>muscleGroup</c>, <c>minSets</c>,
@@ -25,6 +33,7 @@ public sealed class MuscleTargetsController(IMuscleTargetService targets) : Cont
     [HttpPut]
     public async Task<ActionResult<IReadOnlyList<MuscleTarget>>> Update([FromBody] List<MuscleTarget>? request, CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
         if (request is null) return BadRequest(new { error = "Targets are required." });
 
         var normalized = new List<MuscleTarget>(request.Count);
@@ -50,6 +59,6 @@ public sealed class MuscleTargetsController(IMuscleTargetService targets) : Cont
             normalized.Add(new MuscleTarget { MuscleGroup = group, MinSets = item.MinSets, MaxSets = item.MaxSets });
         }
 
-        return Ok(await targets.UpdateAsync(normalized, cancellationToken));
+        return Ok(await targets.UpdateAsync(ownerId, normalized, cancellationToken));
     }
 }

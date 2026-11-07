@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet restore)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet format:*)",
+      "Bash(dotnet --info)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet ef migrations has-pending-model-changes:*)",
+      "Bash(dotnet ef migrations list:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet ef migrations script:*)",
+      "Bash(make build)",
+      "Bash(make build-local)",
+      "Bash(make restore)",
+      "Bash(make clean)",
+      "Bash(pnpm install --frozen-lockfile)",
+      "Bash(pnpm build)",
+      "Bash(pnpm run build)",
+      "Bash(pnpm exec vue-tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git switch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(git rebase origin/develop)",
+      "Bash(fj issue:*)",
+      "Bash(fj pr view:*)",
+      "Bash(fj pr create:*)",
+      "Bash(fj pr comment:*)",
+      "Bash(fj pr edit:*)",
+      "Bash(fj pr diff:*)",
+      "Bash(fj pr list:*)",
+      "Bash(fj pr review list:*)",
+      "Bash(fj pr review view:*)",
+      "Bash(fj label list:*)",
+      "Bash(fj repo view:*)",
+      "Bash(fj version)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin --delete:*)",
+      "Bash(fj pr merge:*)",
+      "Bash(fj auth:*)",
+      "Bash(fj pr close:*)",
+      "Bash(fj issue delete:*)",
+      "Bash(fj label delete:*)",
+      "Bash(make publish:*)",
+      "Bash(make push:*)",
+      "Bash(make dev:*)",
+      "Bash(make run:*)",
+      "Bash(make watch:*)",
+      "Bash(make docker-run:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet watch:*)",
+      "Bash(dotnet ef database:*)",
+      "Bash(docker push:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker rmi:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker kill:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker container prune:*)",
+      "Bash(docker image prune:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker volume prune:*)",
+      "Bash(docker network rm:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./UI/gymlogsparser/.env)",
+      "Read(./UI/gymlogsparser/.env.*)",
+      "Read(./GymLogsParser/appsettings.Development.json)",
+      "Read(~/.ssh/**)",
+      "Read(~/.local/share/forgejo-cli/**)",
+      "Read(~/.config/fj/**)",
+      "Read(~/.git-credentials)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-edited.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

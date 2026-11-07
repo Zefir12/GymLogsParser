@@ -47,11 +47,11 @@ defineProps<{
 }
 
 .toast-success {
-  border-color: rgba(70, 190, 120, 0.35);
+  border-color: var(--toast-success-border);
 }
 
 .toast-error {
-  border-color: rgba(220, 70, 70, 0.35);
+  border-color: var(--toast-error-border);
 }
 
 .toast-icon {
@@ -70,13 +70,13 @@ defineProps<{
 }
 
 .toast-success .toast-icon {
-  background: rgba(70, 190, 120, 0.15);
-  color: #46be78;
+  background: var(--toast-success-bg);
+  color: var(--toast-success);
 }
 
 .toast-error .toast-icon {
-  background: rgba(220, 70, 70, 0.15);
-  color: #dc4646;
+  background: var(--toast-error-bg);
+  color: var(--toast-error);
 }
 
 .toast-enter-active,

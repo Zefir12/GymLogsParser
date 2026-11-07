@@ -41,26 +41,52 @@
   --accent-border: rgba(var(--accent-rgb), 0.4);
   --accent-text: #ffb58d;
   --on-accent: #1a0a00; /* text and marks on an accent fill */
+  --on-accent-muted: rgba(26, 10, 0, 0.55); /* --on-accent, spinner ring */
 
   /* --- status --- */
+  --success-rgb: 134, 198, 163; /* --success as r, g, b for rgba() */
   --success: #86c6a3;
-  --success-bg: rgba(134, 198, 163, 0.09);
-  --success-border: rgba(134, 198, 163, 0.28);
+  --success-bg: rgba(var(--success-rgb), 0.09);
+  --success-border: rgba(var(--success-rgb), 0.28);
 
+  --warning-rgb: 230, 180, 80; /* --warning as r, g, b for rgba() */
   --warning: #e6b450;
+  --warning-bg: rgba(var(--warning-rgb), 0.08);
+  --warning-bg-soft: rgba(var(--warning-rgb), 0.06); /* notices */
+  --warning-border: rgba(var(--warning-rgb), 0.35);
+  --warning-border-soft: rgba(var(--warning-rgb), 0.3); /* notices */
 
   --danger: #e28d9c;
   --danger-bg: rgba(226, 141, 156, 0.09);
   --danger-border: rgba(226, 141, 156, 0.3);
 
+  /* toasts: brighter than the status colours, they sit on glass */
+  --toast-success-rgb: 70, 190, 120;
+  --toast-success: rgb(var(--toast-success-rgb));
+  --toast-success-bg: rgba(var(--toast-success-rgb), 0.15);
+  --toast-success-border: rgba(var(--toast-success-rgb), 0.35);
+  --toast-error-rgb: 220, 70, 70;
+  --toast-error: rgb(var(--toast-error-rgb));
+  --toast-error-bg: rgba(var(--toast-error-rgb), 0.15);
+  --toast-error-border: rgba(var(--toast-error-rgb), 0.35);
+
+  /* --- navigation --- */
+  --nav-active-bg: rgba(255, 255, 255, 0.06);
+
   /* --- dashboard: cards, tracks, segmented controls --- */
   --card-bg: var(--brand-ground);
-  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.08); /* also chart gridlines */
+  --row-divider: rgba(255, 255, 255, 0.06); /* table rows inside a card */
+  --empty-border: rgba(255, 255, 255, 0.12); /* dashed empty-state boxes */
+  --option-hover-bg: rgba(255, 255, 255, 0.08); /* picker list hover/selected */
   --header-bg: var(--brand-ground);
   --track: #1d1e22;
   --segment-bg: #18181b;
   --segment-on: var(--brand-row-1);
   --bar-idle: var(--brand-row-4);
+  --bar-label: #c9ccd3; /* weekly-sets row labels */
+  --target-band-bg: rgba(var(--success-rgb), 0.12); /* weekly target range */
+  --target-band-edge: rgba(var(--success-rgb), 0.35);
   --spark-idle: var(--brand-row-2);
   --spark-recent: #8b8f99;
   --spark-active: var(--heat-2);
