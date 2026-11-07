@@ -22,3 +22,32 @@
   --brand-row-light-3: #9a958d;
   --brand-row-light-4: #7e7971;
 }
+
+/* ============================================================
+   BLOKOWISKO NIGHT PALETTE (#51)
+   zefir's "Design accent set" plus the reference sets it was
+   picked from. Primitives for the night theme in themes.css.
+   ============================================================ */
+
+:root {
+  /* Blokowisko: concrete greys, light to dark */
+  --night-grey-1: #a2a4b8;
+  --night-grey-2: #9496a9;
+  --night-grey-3: #797988;
+  --night-grey-4: #656572;
+  --night-grey-5: #575762;
+  --night-grey-6: #444348;
+  --night-grey-7: #282729;
+  --night-grey-8: #222122;
+  --night-ground: #191819;
+
+  /* Żabka: green */
+  --night-green-pale: #d0f59b;
+  --night-green: #9bc770;
+  --night-green-mid: #4d7c2a;
+  --night-green-deep: #326216;
+
+  /* Window glow: yellow */
+  --night-glow: #dfd079;
+  --night-glow-dim: #c8b77a;
+}
