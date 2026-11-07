@@ -56,19 +56,20 @@ machine (logged in as that machine's bot, config in `~/.config/fj/config.yaml`).
   with the attribution lines from your session instructions.
 
 ## CI status
-The only workflow is .forgejo/workflows/image.yaml. On a PR it runs only when the PR
-touches a csproj, GymLogsParser/Dockerfile, .dockerignore or the workflow, and then
-only builds the image (kaniko, no push). Pushes to develop push the image; pushes to
-main push it and deploy to production through nudge. So for most PRs there is no CI
-status at all: the local `dotnet build` / `pnpm build` gate (CLAUDE.md "Commands") is
-the only check.
+Two workflows. .forgejo/workflows/test.yaml (`test (dotnet)`) builds the solution and
+runs the tests on every PR that touches Core, Infrastructure, GymLogsParser, Tests or
+the solution, and on pushes to develop and main. .forgejo/workflows/image.yaml runs on
+a PR only when it touches a csproj, GymLogsParser/Dockerfile, .dockerignore or the
+workflow, and then only builds the image (kaniko, no push); pushes to develop push the
+image, pushes to main push it and deploy to production through nudge. Frontend-only PRs
+have no CI status: the local `pnpm build` gate (CLAUDE.md "Commands") is the only check.
 
     fj api "repos/{owner}/{repo}/commits/$(git rev-parse HEAD)/status" \
       --jq '.state, (.statuses[] | "\(.status)  \(.context)")'
 Use the commit SHA: branch names with a slash (`feat/12-x`) return 404 here.
 `state` is pending/success/failure. Job logs are not readable with the token: reproduce
-an image failure locally with `dotnet build GymLogsParser.sln` (or `make build`), or ask
-zefir to paste the log.
+a failure locally with `dotnet build GymLogsParser.sln` / `make test` (or `make build`
+for the image), or ask zefir to paste the log.
 
 ## Full issue loop
 1. `fj issue view N --comments`. If it's unclear, comment your questions,

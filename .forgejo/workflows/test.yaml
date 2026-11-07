@@ -1,0 +1,69 @@
+# Builds the solution and runs the tests (Tests/, see `make test`) in the .NET SDK image.
+# Pull requests that touch the backend run it before merge; pushes to develop and main run it
+# again on the merged code. It doesn't gate the image build or the production deploy
+# (image.yaml): a red run here is for zefir to see before merging.
+name: test
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    paths:
+      - Core/**
+      - Infrastructure/**
+      - GymLogsParser/**
+      - Tests/**
+      - GymLogsParser.sln
+      - .forgejo/workflows/test.yaml
+
+concurrency:
+  group: test-${{ forgejo.ref }}
+  cancel-in-progress: ${{ forgejo.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: test (dotnet)
+    runs-on: docker
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:10.0
+    # The tests use this server instead of Testcontainers: jobs get no Docker socket.
+    # Throwaway CI database; keep the image in step with Tests/PostgresFixture.cs.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: gymlogs
+          POSTGRES_USER: gymlogs
+          POSTGRES_PASSWORD: gymlogsci
+        options: --tmpfs /var/lib/postgresql/data
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      GYMLOGS_TEST_DATABASE: Host=postgres;Port=5432;Database=gymlogs;Username=gymlogs;Password=gymlogsci
+
+    steps:
+      # The SDK image has no Node, which JavaScript actions such as checkout need.
+      - name: Install Node for actions
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs
+
+      - name: Checkout
+        uses: https://data.forgejo.org/actions/checkout@v6
+
+      - name: Restore
+        run: dotnet restore GymLogsParser.sln
+
+      - name: Build
+        run: dotnet build GymLogsParser.sln --no-restore
+
+      - name: Wait for Postgres
+        shell: bash # for /dev/tcp
+        run: |
+          for i in $(seq 1 60); do
+            (exec 3<>/dev/tcp/postgres/5432) 2>/dev/null && exit 0
+            sleep 1
+          done
+          echo "Postgres did not become ready"; exit 1
+
+      - name: Test
+        run: dotnet test GymLogsParser.sln --no-build

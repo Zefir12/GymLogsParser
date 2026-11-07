@@ -28,9 +28,11 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
 - Deploy: `.forgejo/workflows/image.yaml` builds the API image with kaniko. Pushes to
   `develop` push `develop`/`develop-<sha>` (no staging stack); pushes to `main` push
   `latest`/`main-<sha>` and deploy to production through nudge, by digest. **Merging to
-  main is a production deploy.** PR CI only builds the image, and only when the PR
-  touches a csproj, the Dockerfile, .dockerignore or the workflow: nothing compiles or
-  type-checks ordinary code changes on a PR.
+  main is a production deploy.** On a PR, image.yaml only builds the image, and only
+  when the PR touches a csproj, the Dockerfile, .dockerignore or the workflow.
+  `.forgejo/workflows/test.yaml` builds the solution and runs the tests on every PR that
+  touches the backend (and on pushes to develop/main), against a Postgres service
+  container. Nothing type-checks the frontend on a PR.
 
 ## Stack
 - .NET 10 (`net10.0`, C# 14: primary constructors, collection expressions, `extension`
@@ -41,8 +43,12 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
   library). Package manager is pnpm (`pnpm-lock.yaml`); don't add a package-lock.json.
 - No other NuGet or npm dependency without asking zefir. Keep package versions aligned
   across the three csproj files (EF Core 10.0.x in both Infrastructure and GymLogsParser).
-- No test projects and no linters exist yet. Don't add a test project or a linter as a
-  side effect of another issue; propose it as an issue.
+- Tests: one xUnit v3 project, `Tests/` (#49), against real PostgreSQL (Testcontainers
+  locally, a service container in CI); every test gets its own copy of a migrated
+  database. Test-only packages (xunit.v3, Microsoft.NET.Test.Sdk,
+  xunit.runner.visualstudio, Testcontainers.PostgreSql) live only in Tests.csproj.
+  No linters exist yet; don't add one (or a second test project) as a side effect of
+  another issue; propose it as an issue.
 
 ## Layout
 - GymLogsParser.sln           solution: Core, Infrastructure, GymLogsParser
@@ -64,7 +70,11 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
                               theme), router/, directives/ (`v-can` role check)
 - deploy/                     nudge stack (compose.yaml), .env.example (names and docs,
                               example values only), README.md (deploy, routing, CI)
+- Tests/                      xUnit v3 tests: PostgresFixture (server + per-test migrated
+                              database), TestUsers (signed-in principals, seed helpers),
+                              controller/service tests per area
 - .forgejo/workflows/image.yaml  image build + prod deploy through nudge
+- .forgejo/workflows/test.yaml   dotnet build + tests on PRs and develop/main pushes
 
 ## Commands
 Run from the repo root unless noted.
@@ -75,11 +85,19 @@ Run from the repo root unless noted.
   generate a migration (then review it; see Migrations below)
 - `cd UI/gymlogsparser && pnpm install --frozen-lockfile && pnpm build`: `vue-tsc -b`
   type-check plus Vite build. This is the frontend gate.
+- `make test` (`dotnet test GymLogsParser.sln`): the tests. They need Docker for
+  Testcontainers, or `GYMLOGS_TEST_DATABASE` set to a Postgres server they may create
+  and drop databases on (never production). The fixture runs every migration, and EF
+  fails a migration run when the model has pending changes, so the tests also catch a
+  snapshot that doesn't match the model.
 - `make build-local`: Release build of the API; `make build`: local Docker image
 Before committing: `dotnet build` for backend changes (plus the EF check for model or
-migration changes), `pnpm build` for frontend changes. Fix failures yourself.
+migration changes), `make test` for backend changes, `pnpm build` for frontend changes.
+Fix failures yourself. Backend changes that affect per-user data or other behaviour the
+tests cover get a test in `Tests/`.
 
-This host usually has **no dotnet, dotnet-ef, node or pnpm**. If a gate can't run here,
+This host usually has **no dotnet, dotnet-ef, node or pnpm**. The test workflow then is
+the only build and test run: check its status on the PR (forgejo skill, CI status). If a gate can't run here,
 don't install anything and don't run it through docker by hand: say exactly which
 checks did not run in the PR's "How it was tested", list the commands for zefir
 (as in #21, #36, #39, #40), and be extra careful with types and migration files.
