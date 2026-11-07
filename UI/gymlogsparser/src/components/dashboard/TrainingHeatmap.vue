@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import SegmentedControl from "@/components/dashboard/SegmentedControl.vue";
 import { useDashboardStore } from "@/stores/dashboard";
 import { dayDate, formatDay, monthName } from "@/utils/dashboard";
 
@@ -10,15 +11,35 @@ const LEVELS = 5;
 const legend = Array.from({ length: LEVELS }, (_, i) => i);
 const weekdayLabels = ["Mon", "", "Wed", "", "Fri", "", ""];
 
-const weeks = computed(() => {
-  const values = store.filteredSetsByDay;
-  const max = Math.max(0, ...values.values()) || 1;
+/** "last" = the last 53 weeks; otherwise a calendar year with training. */
+const yearOptions = computed(() => [
+  { value: "last", label: "Last 12 mo" },
+  ...store.trainingYears.map((y) => ({ value: String(y), label: String(y) })),
+]);
 
-  return Array.from({ length: 53 }, (_, w) => {
+const yearModel = computed({
+  get: () => (store.heatmapYear === null ? "last" : String(store.heatmapYear)),
+  set: (value: string) => {
+    store.heatmapYear = value === "last" ? null : Number(value);
+  },
+});
+
+const weeks = computed(() => {
+  const first = store.heatmapFirstDay;
+  const last = store.heatmapLastDay;
+  const values = store.filteredSetsByDay;
+  // shade relative to the busiest day on screen
+  let max = 0;
+  for (const [day, sets] of values) {
+    if (day >= first && day <= last && sets > max) max = sets;
+  }
+  max ||= 1;
+
+  return Array.from({ length: store.heatmapWeeks }, (_, w) => {
     const start = store.heatmapStart + w * 7;
     const days = Array.from({ length: 7 }, (_, i) => {
       const day = start + i;
-      if (day > store.toDay) return { day, level: -1, tip: "" };
+      if (day < first || day > last) return { day, level: -1, tip: "" };
 
       const sets = values.get(day) ?? 0;
       const title = store.dayByNumber.get(day)?.title;
@@ -42,6 +63,13 @@ const weeks = computed(() => {
   <section aria-label="Training days" class="card">
     <div class="card-head">
       <h2>{{ store.filterLabel }} · training days</h2>
+      <SegmentedControl
+        v-if="store.trainingYears.length"
+        v-model="yearModel"
+        :options="yearOptions"
+        label="Year"
+        compact
+      />
       <div class="legend">
         Less
         <span

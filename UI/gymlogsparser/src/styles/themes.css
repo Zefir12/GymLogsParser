@@ -78,7 +78,7 @@
 
   /* --- dashboard: cards, tracks, segmented controls --- */
   --card-bg: var(--night-grey-8);
-  --card-border: var(--night-grey-6);
+  --card-border: #2a292c; /* between --night-grey-7 and -6: quieter card outline */
   --row-divider: rgba(162, 164, 184, 0.1); /* --night-grey-1 tint */
   --empty-border: var(--night-grey-5);
   --option-hover-bg: rgba(162, 164, 184, 0.1); /* --night-grey-1 tint */
@@ -88,6 +88,11 @@
   --segment-on: var(--night-grey-6);
   --bar-idle: var(--night-grey-5);
   --bar-label: var(--brand-light);
+  --bar-on-target: var(--night-green);
+  --target-band-hit-bg: rgba(108, 203, 58, 0.32); /* --night-green */
+  --target-band-hit-edge: rgba(108, 203, 58, 0.75);
+  --bar-over-target: #d4553f;
+  --over-target-text: #e5735f;
   --spark-idle: var(--night-grey-6);
   --spark-recent: var(--night-grey-3);
   --spark-active: var(--heat-3);

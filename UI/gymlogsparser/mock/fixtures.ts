@@ -98,7 +98,6 @@ const catalogRows: CatalogRow[] = [
   ["adductor-machine", "Adductor Machine", "Adductors", false, ["przywodziciele"], []],
   ["abductor-machine", "Abductor Machine", "Abductors", false, ["odwodziciele"], []],
   ["hanging-leg-raise", "Hanging Leg Raise", "Abs", false, ["unoszenie nóg w zwisie"], []],
-  ["neck-curl", "Neck Curl", "Neck", false, [], []],
   ["treadmill", "Treadmill", "Cardio", false, ["bieżnia"], [], "Cardio"],
   ["rowing-machine", "Rowing Machine", "Cardio", false, ["ergometr", "wioślarz"], [], "Cardio"],
   ["bike-warm-up", "Bike Warm-up", "Warm-up", false, ["rower rozgrzewka"], [], "Cardio"],
@@ -142,7 +141,6 @@ const targetDefaults: [string, number, number][] = [
   ["Calves", 8, 16],
   ["Adductors", 4, 10],
   ["Abductors", 4, 10],
-  ["Neck", 0, 8],
 ];
 
 export function createTargets(): MuscleTarget[] {
@@ -207,7 +205,6 @@ const templates: { title: string; slots: Slot[] }[] = [
       ["hip-thrust", 3, 8, 12, 100, 0.8],
       ["abductor-machine", 2, 15, 20, 45, 0.3],
       ["skull-crusher", 3, 10, 12, 25, 0.2],
-      ["neck-curl", 2, 15, 20, 10, 0.1],
     ],
   },
 ];
@@ -215,7 +212,8 @@ const templates: { title: string; slots: Slot[] }[] = [
 /** Days of the week (0 = Monday) and the template trained on them. */
 const schedule: Record<number, number> = { 0: 0, 1: 1, 3: 2, 5: 3 };
 
-const DAYS_BACK = 150;
+/** About 2.5 years, so the heatmap has past years to pick; older months are sparser. */
+const DAYS_BACK = 900;
 
 const notes = [
   "Ciężko dziś, mało snu.",
@@ -263,12 +261,16 @@ export function createWorkouts(catalog: ExerciseDefinition[]): WorkoutLog[] {
     const date = addDays(start, day);
     const template = schedule[weekday(date)];
     if (template === undefined || date > today) continue;
-    // A holiday about two months ago, and the odd skipped session.
-    if (day > 85 && day < 95) continue;
-    if (random() < 0.1) continue;
+    // A holiday about two months ago, and the odd skipped session; more skipped
+    // sessions before the last five months.
+    const daysAgo = DAYS_BACK - day;
+    if (daysAgo > 55 && daysAgo < 65) continue;
+    if (random() < (daysAgo > 150 ? 0.45 : 0.1)) continue;
 
-    const week = Math.floor(day / 7);
-    const deload = week % 6 === 5 ? 0.85 : 1;
+    // Start weights are for five months ago; before that, progress was slower.
+    const weekRaw = Math.floor((day - (DAYS_BACK - 150)) / 7);
+    const week = weekRaw >= 0 ? weekRaw : weekRaw * 0.3;
+    const deload = Math.floor(day / 7) % 6 === 5 ? 0.85 : 1;
     const { title, slots } = templates[template];
     const exercises: WorkoutExercise[] = [];
 

@@ -1,7 +1,7 @@
 /**
  * The one flat list of body parts an exercise can train: no parent categories such
  * as "Legs", "Shoulders" or "Back". Order is the display order (upper body, arms,
- * core, lower body, neck, then Cardio and Warm-up). Keep in sync with
+ * core, lower body, then Cardio and Warm-up). Keep in sync with
  * Core/Models/MuscleGroups.cs, which rejects anything else in the catalog.
  */
 export const MUSCLE_GROUPS = [
@@ -23,7 +23,6 @@ export const MUSCLE_GROUPS = [
   "Calves",
   "Adductors",
   "Abductors",
-  "Neck",
   "Cardio",
   "Warm-up",
 ] as const;

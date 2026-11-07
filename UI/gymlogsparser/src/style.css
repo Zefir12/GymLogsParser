@@ -33,6 +33,34 @@ select {
   font: inherit;
 }
 
+/*
+ * Every dropdown: our own chevron, inset from the right edge like the text is from
+ * the left, and focus shown on the border instead of an outline around it.
+ * !important because components set the `background`/`padding` shorthands.
+ */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: var(--select-chevron) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 10px 6px !important;
+  padding-right: 32px !important;
+}
+
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  border-color: var(--accent-border) !important;
+}
+
+/* the tiny selects in set tables */
+.set-row select {
+  background-position: right 6px center !important;
+  background-size: 8px 5px !important;
+  padding-right: 18px !important;
+}
+
 button {
   cursor: pointer;
 }
