@@ -15,7 +15,7 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
     /// </summary>
     private const string WarmupMuscleGroup = MuscleGroups.WarmUp;
 
-    public async Task<DashboardData> GetAsync(DateOnly to, int days, CancellationToken cancellationToken = default)
+    public async Task<DashboardData> GetAsync(string ownerId, DateOnly to, int days, CancellationToken cancellationToken = default)
     {
         // Enough whole weeks that the first one starts on or before to - days + 1,
         // whatever weekday `to` is.
@@ -27,7 +27,8 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
         // for PR detection, so only those with weight and reps are loaded.
         var sets = await db.WorkoutSets
             .AsNoTracking()
-            .Where(s => s.Warmup != true
+            .Where(s => s.WorkoutExercise.Workout.OwnerId == ownerId
+                        && s.Warmup != true
                         && s.WorkoutExercise.Category == ExerciseCategory.Strength
                         && s.WorkoutExercise.Workout.Date != null
                         && s.WorkoutExercise.Workout.Date <= to
@@ -45,7 +46,8 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
 
         var cardio = await db.CardioEntries
             .AsNoTracking()
-            .Where(c => c.WorkoutExercise.Workout.Date != null
+            .Where(c => c.WorkoutExercise.Workout.OwnerId == ownerId
+                        && c.WorkoutExercise.Workout.Date != null
                         && c.WorkoutExercise.Workout.Date >= from
                         && c.WorkoutExercise.Workout.Date <= to)
             .Select(c => new
@@ -59,14 +61,14 @@ public sealed class DashboardService(AppDbContext db) : IDashboardService
 
         var exerciseRows = await db.WorkoutExercises
             .AsNoTracking()
-            .Where(e => e.Workout.Date != null && e.Workout.Date >= from && e.Workout.Date <= to)
+            .Where(e => e.Workout.OwnerId == ownerId && e.Workout.Date != null && e.Workout.Date >= from && e.Workout.Date <= to)
             .OrderByDescending(e => e.Workout.Date)
             .Select(e => new { e.ExerciseId, e.Name, e.MuscleGroup, e.Category })
             .ToListAsync(cancellationToken);
 
         var titles = await db.Workouts
             .AsNoTracking()
-            .Where(w => w.Date != null && w.Date >= from && w.Date <= to)
+            .Where(w => w.OwnerId == ownerId && w.Date != null && w.Date >= from && w.Date <= to)
             .OrderBy(w => w.StartTime)
             .Select(w => new { Date = w.Date!.Value, w.Title })
             .ToListAsync(cancellationToken);

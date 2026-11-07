@@ -7,22 +7,22 @@ namespace Infrastructure.Services;
 
 public sealed class MuscleTargetService(AppDbContext db) : IMuscleTargetService
 {
-    public async Task<IReadOnlyList<MuscleTarget>> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MuscleTarget>> GetAsync(string ownerId, CancellationToken cancellationToken = default)
     {
-        var rows = await db.MuscleTargets.AsNoTracking().ToListAsync(cancellationToken);
+        var rows = await db.MuscleTargets.AsNoTracking().Where(t => t.OwnerId == ownerId).ToListAsync(cancellationToken);
         return Merge(rows);
     }
 
-    public async Task<IReadOnlyList<MuscleTarget>> UpdateAsync(IReadOnlyList<MuscleTarget> targets, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MuscleTarget>> UpdateAsync(string ownerId, IReadOnlyList<MuscleTarget> targets, CancellationToken cancellationToken = default)
     {
-        var rows = await db.MuscleTargets.ToListAsync(cancellationToken);
+        var rows = await db.MuscleTargets.Where(t => t.OwnerId == ownerId).ToListAsync(cancellationToken);
         var byGroup = rows.ToDictionary(r => r.MuscleGroup, StringComparer.Ordinal);
 
         foreach (var target in targets)
         {
             if (!byGroup.TryGetValue(target.MuscleGroup, out var row))
             {
-                row = new MuscleTargetEntity { MuscleGroup = target.MuscleGroup };
+                row = new MuscleTargetEntity { OwnerId = ownerId, MuscleGroup = target.MuscleGroup };
                 db.MuscleTargets.Add(row);
                 byGroup[row.MuscleGroup] = row;
                 rows.Add(row);

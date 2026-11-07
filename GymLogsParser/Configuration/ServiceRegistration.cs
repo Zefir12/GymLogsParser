@@ -15,6 +15,8 @@ public static class ServiceRegistration
             services.AddScoped<IDashboardService, DashboardService>();
             services.AddScoped<IExerciseCatalogService, ExerciseCatalogService>();
             services.AddScoped<IMuscleTargetService, MuscleTargetService>();
+            services.AddScoped<IBodyweightService, BodyweightService>();
+            services.AddSingleton<ILegacyDataClaimService, LegacyDataClaimService>();
             services.AddHttpClient<IDeepSeekService, DeepSeekService>((serviceProvider, client) =>
             {
                 var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<DeepSeekOptions>>().Value;

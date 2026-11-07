@@ -120,6 +120,7 @@ On the client used by `Auth__ClientId`:
 | `API_BIND`, `API_PORT` | no | Where the API port is published, default `127.0.0.1:8085`. |
 | `Database__MigrateOnStartup` | no | Default `true`: the API applies pending migrations on start. |
 | `DeepSeek__BaseUrl`, `DeepSeek__Model`, `DeepSeek__MaxTokens`, `DeepSeek__CacheMinutes` | no | Default to the values in the image's appsettings.json. |
+| `Ownership__LegacyOwner` | no | OIDC `sub` or email of the user who gets the data from before per-user data (see [Per-user data](#per-user-data)). Default in appsettings.json: zefir's account email. |
 
 The whole stack env is also handed to the `api` container (`env_file`), so any other
 `Section__Key` override works without changing the compose file.
@@ -152,6 +153,22 @@ The `api` container must be able to reach the database host:
   its service name.
 
 `deploy/compose.yaml` does not include these; add the one you need to the `api` service.
+
+### Per-user data
+
+Every workout, weekly target range and bodyweight measurement belongs to one user: the
+OIDC `sub` of whoever is signed in (#45). Users only see and edit their own; the
+exercise catalog is shared by everyone.
+
+The migration that introduced this (`PerUserData`) marked every existing row with the
+placeholder owner `legacy`. On the first signed-in request of the user named by
+`Ownership__LegacyOwner` (matched against their `sub`, or their email unless the token
+says it is unverified), the API moves all `legacy` rows to that user's `sub`, once.
+Until then nobody sees them. Check with:
+
+```sql
+SELECT "OwnerId", count(*) FROM workouts GROUP BY 1;
+```
 
 ## 5. First deploy
 

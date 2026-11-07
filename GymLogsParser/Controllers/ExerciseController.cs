@@ -1,25 +1,31 @@
 using Core.Models;
+using GymLogsParser.Extensions;
 using Infrastructure;
 using Infrastructure.Helpers;
+using Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace GymLogsParser.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/exercises")]
-public sealed class ExercisesController(AppDbContext db) : ControllerBase
+public sealed class ExercisesController(AppDbContext db, IBodyweightService bodyweights) : ControllerBase
 {
     /// <summary>
-    /// Distinct list of strength exercises that have been logged at least once,
+    /// Distinct list of strength exercises the signed-in user has logged at least once,
     /// used to populate an exercise picker on the frontend.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<List<ExerciseSummary>>> ListExercises(CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
+
         var rows = await db.WorkoutExercises
             .AsNoTracking()
-            .Where(e => e.Category == ExerciseCategory.Strength)
+            .Where(e => e.Workout.OwnerId == ownerId && e.Category == ExerciseCategory.Strength)
             .Select(e => new { e.ExerciseId, e.Name, e.MuscleGroup })
             .ToListAsync(cancellationToken);
 
@@ -41,21 +47,26 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
     /// Returns one data point per workout for the given exercise: max weight lifted,
     /// total volume (sum of weight * reps across working sets), and the estimated
     /// one-rep-max for that session, plus bodyweight and DOTS score (of the e1RM). Warm-up sets and sets missing weight/reps are
-    /// excluded from all three metrics.
+    /// excluded from all three metrics. Only the signed-in user's workouts, and their
+    /// bodyweight history (no history: bodyweight and DOTS are null).
     /// </summary>
     [HttpGet("{exerciseId}/progress")]
     public async Task<ActionResult<List<ExerciseProgressPoint>>> GetProgress(
         string exerciseId,
         CancellationToken cancellationToken)
     {
+        if (User.OwnerId() is not { } ownerId) { return Unauthorized(); }
+
         var exerciseOccurrences = await db.WorkoutExercises
             .AsNoTracking()
-            .Where(e => e.ExerciseId == exerciseId)
+            .Where(e => e.Workout.OwnerId == ownerId && e.ExerciseId == exerciseId)
             .Include(e => e.Sets)
             .Include(e => e.Workout)
             .ToListAsync(cancellationToken);
 
         if (exerciseOccurrences.Count == 0) { return NotFound(); }
+
+        var bodyweightHistory = await bodyweights.GetHistoryAsync(ownerId, cancellationToken);
 
         var points = exerciseOccurrences
             // group by workout in case the same exercise appears more than once
@@ -72,7 +83,8 @@ public sealed class ExercisesController(AppDbContext db) : ControllerBase
 
                 var workout = group.First().Workout;
                 double? bodyweight = workout.Date.HasValue
-                    ? Math.Round(BodyweightHistory.GetInterpolated(workout.Date.Value), 1)
+                    && bodyweightHistory.GetInterpolated(workout.Date.Value) is { } interpolated
+                    ? Math.Round(interpolated, 1)
                     : null;
 
                 if (workingSets.Count == 0)

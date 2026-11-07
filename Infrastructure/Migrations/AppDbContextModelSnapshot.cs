@@ -23,6 +23,24 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Infrastructure.Entities.BodyweightEntryEntity", b =>
+                {
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.HasKey("OwnerId", "Date");
+
+                    b.ToTable("bodyweight_entries", (string)null);
+                });
+
             modelBuilder.Entity("Infrastructure.Entities.Cardio", b =>
                 {
                     b.Property<Guid>("Id")
@@ -154,6 +172,10 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Infrastructure.Entities.MuscleTargetEntity", b =>
                 {
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("MuscleGroup")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -164,7 +186,7 @@ namespace Infrastructure.Migrations
                     b.Property<int>("MinSets")
                         .HasColumnType("integer");
 
-                    b.HasKey("MuscleGroup");
+                    b.HasKey("OwnerId", "MuscleGroup");
 
                     b.ToTable("muscle_targets", (string)null);
                 });
@@ -245,6 +267,11 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<TimeOnly?>("StartTime")
                         .HasColumnType("time without time zone");
 
@@ -253,6 +280,8 @@ namespace Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Date");
 
                     b.ToTable("workouts", (string)null);
                 });
