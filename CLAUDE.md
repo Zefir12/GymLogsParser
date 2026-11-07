@@ -7,7 +7,8 @@ per-exercise progress (e1RM, DOTS). Login is OIDC through authestra.
 
 ## How it works
 - One ASP.NET API (`GymLogsParser`), everything under `/api` (`/api/auth`,
-  `/api/workouts`, `/api/ai`, `/api/exercises`, `/api/dashboard`, `/api/muscle-targets`),
+  `/api/workouts`, `/api/ai`, `/api/exercises`, `/api/dashboard`, `/api/muscle-targets`,
+  `/api/bodyweight-entries`),
   plus the OIDC callbacks `/signin-oidc` and `/signout-callback-oidc`.
 - Auth: OIDC against authestra with a session cookie (`gymlogs.session`, SameSite=Lax).
   Outside Development a fallback policy requires an authenticated user on every route;

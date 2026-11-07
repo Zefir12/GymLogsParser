@@ -408,8 +408,10 @@ public sealed class DeepSeekService(HttpClient httpClient, IOptions<DeepSeekOpti
         // The catalog version is part of the key: after an exercise is added or
         // edited, the same log is parsed again against the new list.
         // Per user: the prompt carries the user's bodyweight, and one user's parse must
-        // never be served to another.
-        var cacheKey = $"workout-ai:{ComputeHash(ownerId)}:{ComputeHash(normalized)}:{barbellWeightsArePerSide}:{catalog.Version}";
+        // never be served to another. The bodyweight itself is in the key too, so a
+        // measurement added or edited since (#46) gets a fresh parse.
+        var bodyweightKey = bodyweightKg?.ToString("0.0", CultureInfo.InvariantCulture) ?? "none";
+        var cacheKey = $"workout-ai:{ComputeHash(ownerId)}:{ComputeHash(normalized)}:{barbellWeightsArePerSide}:{catalog.Version}:{bodyweightKey}";
         if (cache.TryGetValue<ParseWorkoutResult>(cacheKey, out var cached)) { return cached!; }
         logger.LogInformation("Cache check: {Ms}ms", sw.ElapsedMilliseconds);
         
