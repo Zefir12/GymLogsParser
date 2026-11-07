@@ -4,7 +4,8 @@
    theme.css. Every other palette is a [data-theme] block on
    <html> that only overrides existing token values: no new
    tokens, no component changes. The theme store (stores/theme.ts)
-   sets the attribute.
+   sets the attribute. The brand glyph has its own night file
+   (assets/brand/glyph-night.svg), picked by the theme store.
    ============================================================ */
 
 /* Blokowisko night: dark and grey, green as the rare accent,
@@ -52,15 +53,25 @@
   --accent-border: rgba(var(--accent-rgb), 0.35);
   --accent-text: var(--night-green);
   --on-accent: var(--night-ground);
+  --on-accent-muted: rgba(25, 24, 25, 0.55); /* --night-ground */
 
   /* --- status --- */
+  --success-rgb: 208, 245, 155; /* --night-green-pale */
   --success: var(--night-green-pale);
   --success-bg: rgba(208, 245, 155, 0.08);
   --success-border: rgba(208, 245, 155, 0.25);
 
+  --warning-rgb: 223, 208, 121; /* --night-glow */
   --warning: var(--night-glow);
 
   /* --danger keeps the default rose: the sets have no red */
+
+  /* toasts: success in Żabka green; the error toast keeps the
+     default red for the same reason as --danger */
+  --toast-success-rgb: 155, 199, 112; /* --night-green */
+
+  /* --- navigation --- */
+  --nav-active-bg: rgba(162, 164, 184, 0.08); /* --night-grey-1 tint */
 
   /* --- dashboard: cards, tracks, segmented controls --- */
   --card-bg: var(--night-grey-8);
@@ -70,6 +81,7 @@
   --segment-bg: var(--night-ground);
   --segment-on: var(--night-grey-6);
   --bar-idle: var(--night-grey-5);
+  --bar-label: var(--brand-light);
   --spark-idle: var(--night-grey-6);
   --spark-recent: var(--night-grey-3);
   --spark-active: var(--heat-3);

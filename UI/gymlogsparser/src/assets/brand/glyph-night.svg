@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 145 346 247" width="346" height="247">
+  <!-- Night variant of glyph-on-dark.svg (#53): Blokowisko greys
+       (--night-grey-6/5/4/3) and Żabka green (--night-green). -->
+  <rect x="106" y="352" width="130" height="30" rx="15" fill="#444348"/>
+  <rect x="106" y="290" width="210" height="30" rx="15" fill="#575762"/>
+  <rect x="106" y="228" width="230" height="30" rx="15" fill="#656572"/>
+  <rect x="106" y="166" width="300" height="30" rx="15" fill="#797988"/>
+  <polyline points="236,367 316,305 336,243 406,181" fill="none" stroke="#9BC770" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="236" cy="367" r="17" fill="#9BC770"/>
+  <circle cx="316" cy="305" r="17" fill="#9BC770"/>
+  <circle cx="336" cy="243" r="17" fill="#9BC770"/>
+  <circle cx="406" cy="181" r="26" fill="#9BC770"/>
+</svg>

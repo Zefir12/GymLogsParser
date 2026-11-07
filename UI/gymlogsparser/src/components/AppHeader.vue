@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import logoGlyph from "@/assets/brand/glyph-on-dark.svg";
+import { useThemeStore } from "@/stores/theme";
+
+const themeStore = useThemeStore();
 
 defineEmits<{ (event: "new-workout"): void }>();
 </script>
@@ -8,7 +10,7 @@ defineEmits<{ (event: "new-workout"): void }>();
   <header class="topbar">
     <div>
       <div class="brand">
-        <img :src="logoGlyph" class="brand-mark" alt="" aria-hidden="true" />
+        <img :src="themeStore.glyph" class="brand-mark" alt="" aria-hidden="true" />
         <span>GymLog</span>
       </div>
 

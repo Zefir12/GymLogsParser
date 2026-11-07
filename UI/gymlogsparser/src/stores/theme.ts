@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import glyphDefault from "@/assets/brand/glyph-on-dark.svg";
+import glyphNight from "@/assets/brand/glyph-night.svg";
 
 /** Palettes from #51. "default" is the Log Ascent look in tokens.css. */
 export const themes = [
@@ -15,6 +17,12 @@ const STORAGE_KEY = "gymlogs:theme";
 const themeColor: Record<ThemeId, string> = {
   default: "#141416",
   night: "#191819",
+};
+
+/** Brand glyph per palette: an image can't read CSS tokens. */
+const glyphs: Record<ThemeId, string> = {
+  default: glyphDefault,
+  night: glyphNight,
 };
 
 function isThemeId(value: unknown): value is ThemeId {
@@ -66,5 +74,8 @@ export const useThemeStore = defineStore("theme", () => {
     if (isThemeId(id)) theme.value = id;
   }
 
-  return { theme, setTheme };
+  /** URL of the brand glyph that matches the palette. */
+  const glyph = computed(() => glyphs[theme.value]);
+
+  return { theme, glyph, setTheme };
 });
