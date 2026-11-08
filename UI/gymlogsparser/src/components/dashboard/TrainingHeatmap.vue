@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 
 import SegmentedControl from "@/components/dashboard/SegmentedControl.vue";
-import { useDashboardStore } from "@/stores/dashboard";
+import WorkoutPickerModal from "@/components/dashboard/WorkoutPickerModal.vue";
+import { useDashboardStore, type WorkoutChoice } from "@/stores/dashboard";
 import { dayDate, formatDay, monthName } from "@/utils/dashboard";
 
 const store = useDashboardStore();
+const router = useRouter();
 
 const LEVELS = 5;
 const legend = Array.from({ length: LEVELS }, (_, i) => i);
@@ -39,7 +42,9 @@ const weeks = computed(() => {
     const start = store.heatmapStart + w * 7;
     const days = Array.from({ length: 7 }, (_, i) => {
       const day = start + i;
-      if (day < first || day > last) return { day, level: -1, tip: "" };
+      if (day < first || day > last) {
+        return { day, level: -1, tip: "", trained: false };
+      }
 
       const sets = values.get(day) ?? 0;
       const title = store.dayByNumber.get(day)?.title;
@@ -47,7 +52,7 @@ const weeks = computed(() => {
       const tip = sets
         ? `${formatDay(day)}${title ? ` · ${title}` : ""} · ${sets} set${sets === 1 ? "" : "s"}`
         : `${formatDay(day)} · rest`;
-      return { day, level, tip };
+      return { day, level, tip, trained: sets > 0 };
     });
     return {
       start,
@@ -57,6 +62,23 @@ const weeks = computed(() => {
     };
   });
 });
+
+// --- clicking a training day opens its workout in the editor (#73) ---
+
+const picker = ref<{ dateLabel: string; choices: WorkoutChoice[] } | null>(null);
+
+function openWorkout(id: string) {
+  picker.value = null;
+  router.push({ name: "edit", query: { workout: id } });
+}
+
+function openDay(day: number) {
+  const ids = store.workoutIdsOnDay(day);
+  if (ids.length === 1) openWorkout(ids[0]!);
+  else if (ids.length > 1) {
+    picker.value = { dateLabel: formatDay(day), choices: store.workoutChoices(ids) };
+  }
+}
 </script>
 
 <template>
@@ -92,16 +114,34 @@ const weeks = computed(() => {
         </div>
         <div v-for="week in weeks" :key="week.start" class="column">
           <div class="month">{{ week.label }}</div>
-          <span
-            v-for="d in week.days"
-            :key="d.day"
-            class="cell"
-            :class="d.level < 0 ? 'future' : `heat-${d.level}`"
-            :title="d.tip || undefined"
-          />
+          <template v-for="d in week.days" :key="d.day">
+            <button
+              v-if="d.trained"
+              type="button"
+              class="cell day"
+              :class="`heat-${d.level}`"
+              :title="d.tip"
+              :aria-label="`${d.tip}. Open workout`"
+              @click="openDay(d.day)"
+            />
+            <span
+              v-else
+              class="cell"
+              :class="d.level < 0 ? 'future' : `heat-${d.level}`"
+              :title="d.tip || undefined"
+            />
+          </template>
         </div>
       </div>
     </div>
+
+    <WorkoutPickerModal
+      v-if="picker"
+      :date-label="picker.dateLabel"
+      :choices="picker.choices"
+      @pick="openWorkout"
+      @close="picker = null"
+    />
   </section>
 </template>
 
@@ -180,6 +220,21 @@ h2 {
   width: 16px;
   height: 16px;
   border-radius: var(--radius-xs);
+}
+
+button.day {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+button.day:hover {
+  outline: 1px solid var(--accent-border);
+}
+
+button.day:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
 }
 
 .future {

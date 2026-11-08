@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   deleteWorkout,
@@ -20,6 +21,8 @@ import { useExerciseCatalogStore } from "@/stores/exercises";
 import { formatDuration } from "@/utils/format";
 
 const catalog = useExerciseCatalogStore();
+const route = useRoute();
+const router = useRouter();
 
 const workouts = ref<WorkoutSummary[]>([]);
 const searchQuery = ref("");
@@ -46,7 +49,32 @@ onMounted(() => {
   window.addEventListener("resize", onResize);
   loadWorkouts();
   catalog.ensureLoaded();
+  openFromQuery();
 });
+
+/**
+ * `?workout=<id>` opens that workout: the dashboard's heatmap and progress
+ * chart link here (#73). The query follows the open workout, so a reload keeps it.
+ */
+function queryWorkoutId(): string | null {
+  const id = route.query.workout;
+  return typeof id === "string" && id ? id : null;
+}
+
+function openFromQuery() {
+  const id = queryWorkoutId();
+  if (id) selectWorkout(id);
+}
+
+watch(() => route.query.workout, openFromQuery);
+
+function syncQuery(id: string | null) {
+  if (queryWorkoutId() === id) return;
+  const query = { ...route.query };
+  if (id) query.workout = id;
+  else delete query.workout;
+  router.replace({ query });
+}
 
 onUnmounted(() => {
   window.removeEventListener("resize", onResize);
@@ -88,11 +116,13 @@ async function loadWorkouts() {
 function selectWorkout(id: string) {
   if (id === selectedId.value) return;
   selectedId.value = id;
+  syncQuery(id);
   loadWorkoutDetail(id);
 }
 
 function closeDetail() {
   selectedId.value = null;
+  syncQuery(null);
   workout.value = null;
   detailError.value = null;
 }

@@ -52,9 +52,7 @@ public static class MuscleTargetDefaults
             ["Glutes"] = (8, 16),
             ["Calves"] = (8, 16),
             ["Adductors"] = (4, 10),
-            ["Abductors"] = (4, 10),
-            // Optional: 0 sets is still on target.
-            ["Neck"] = (0, 8)
+            ["Abductors"] = (4, 10)
         };
 
     public static (int Min, int Max) For(string muscleGroup) =>

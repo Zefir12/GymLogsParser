@@ -10,6 +10,7 @@ import type {
   DashboardMetric,
   DashboardRange,
 } from "@/types/dashboard";
+import type { WorkoutSummary } from "@/types/workout";
 import {
   ALL,
   CARDIO,
@@ -23,6 +24,14 @@ import {
   todayIso,
   weekStart,
 } from "@/utils/dashboard";
+
+/** One workout offered by the workout picker; sizes are null when unknown. */
+export interface WorkoutChoice {
+  id: string;
+  title: string | null;
+  exerciseCount: number | null;
+  totalSets: number | null;
+}
 
 export interface ExerciseSession {
   day: number;
@@ -63,16 +72,26 @@ export const useDashboardStore = defineStore("dashboard", () => {
   /** Bumped per request so a slow, older response never overwrites a newer one. */
   let requestId = 0;
 
-  /** Fills `trainingYears` once; a failure only hides the older years. */
-  async function loadTrainingYears() {
-    if (trainingYears.value.length) return;
+  /**
+   * Every logged workout (newest first), for the heatmap's years and for picking
+   * which workout to open when a day or chart point has more than one.
+   */
+  const workoutSummaries = ref<WorkoutSummary[]>([]);
+
+  /**
+   * Refreshes `workoutSummaries` and `trainingYears`. A failure keeps the last
+   * list: the heatmap still shows the last 53 weeks, and the workout picker
+   * falls back to the IDs the dashboard itself names.
+   */
+  async function loadWorkoutSummaries() {
     try {
       const workouts = await getWorkouts();
       const years = new Set<number>();
       for (const w of workouts) if (w.date) years.add(Number(w.date.slice(0, 4)));
+      workoutSummaries.value = workouts;
       trainingYears.value = [...years].sort((a, b) => b - a);
     } catch {
-      // keep the list empty: the heatmap still shows the last 53 weeks
+      // keep what we had
     }
   }
 
@@ -89,7 +108,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       const [result] = await Promise.all([
         getDashboard(todayIso(), window),
         catalog.ensureLoaded(),
-        loadTrainingYears(),
+        loadWorkoutSummaries(),
       ]);
       if (id === requestId) data.value = result;
     } catch (err) {
@@ -180,6 +199,35 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const dayByNumber = computed(
     () => new Map(days.value.map((d) => [d.day, d])),
   );
+
+  /**
+   * IDs of every workout logged on a day: dated to it in the workout list, or
+   * named by the day's dashboard entries (covers a list that failed to load).
+   */
+  function workoutIdsOnDay(day: number): string[] {
+    const ids = new Set<string>();
+    for (const w of workoutSummaries.value) {
+      if (w.date && dayNumber(w.date.slice(0, 10)) === day) ids.add(w.id);
+    }
+    for (const entry of dayByNumber.value.get(day)?.entries ?? []) {
+      for (const id of entry.workoutIds ?? []) ids.add(id);
+    }
+    return [...ids];
+  }
+
+  /** Title and size of each workout, for the workout picker. */
+  function workoutChoices(ids: Iterable<string>): WorkoutChoice[] {
+    const byId = new Map(workoutSummaries.value.map((w) => [w.id, w]));
+    return [...new Set(ids)].map((id) => {
+      const w = byId.get(id);
+      return {
+        id,
+        title: w?.title ?? null,
+        exerciseCount: w?.exerciseCount ?? null,
+        totalSets: w?.totalSets ?? null,
+      };
+    });
+  }
 
   const groupOfEntry = (entry: DashboardDayEntry) =>
     groupOf(exerciseById.value.get(entry.exerciseId));
@@ -431,6 +479,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
     heatmapWeeks,
     rangeStart,
     dayByNumber,
+    workoutSummaries,
+    workoutIdsOnDay,
+    workoutChoices,
     groups,
     groupTotal,
     filteredSetsByDay,

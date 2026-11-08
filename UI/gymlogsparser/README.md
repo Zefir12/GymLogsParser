@@ -3,11 +3,15 @@
 ## UI work without a backend (mock mode)
 
 `make ui-mock` (from the repo root) runs the Vite dev server with a mock API: no .NET,
-PostgreSQL or login. It runs in a `node:24` container as your user, installs
-dependencies with pnpm (corepack) and serves on `HOST:PORT` with HMR:
+PostgreSQL or login. It runs in a `node:24` container (as your user; with rootless
+docker the container's root already is you), installs dependencies with pnpm (corepack)
+and serves on `MOCK_HOST:MOCK_PORT` with HMR:
 
-    make ui-mock                               # http://127.0.0.1:5173
-    make ui-mock HOST=192.168.1.10 PORT=5173   # reachable from your phone on the LAN
+    make ui-mock                                         # http://127.0.0.1:5173
+    make ui-mock MOCK_HOST=192.168.1.10 MOCK_PORT=5173   # reachable from your phone on the LAN
+
+The pnpm store is kept in the docker volume `gymlogs-ui-mock-cache`, so only the first
+run downloads packages; `docker volume rm gymlogs-ui-mock-cache` clears it.
 
 With Node and pnpm on the host, `pnpm dev --mode mock` does the same.
 

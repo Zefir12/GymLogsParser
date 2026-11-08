@@ -1,0 +1,19 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Bench Press (Barbell)",,"",0,"warmup",40,10,,,
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Bench Press (Barbell)",,"",1,"normal",80,5,,,8
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Bench Press (Barbell)",,"",2,"normal",82.5,5,,,
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Bench Press (Barbell)",,"",3,"normal",abc,5,,,
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Triceps Pushdown",,"Rope, then ""bar""
+slow eccentric",0,"normal",30,12,,,
+"Evening workout 🏋️","6 Nov 2026, 18:48","6 Nov 2026, 19:37","","Triceps Pushdown",,"",1,"dropset",20,15,,,
+"Morning workout ☀️","4 Nov 2026, 07:15","4 Nov 2026, 08:05","Legs, easy","Squat (Barbell)",,"",0,"normal",100,5,,,8
+"Morning workout ☀️","4 Nov 2026, 07:15","4 Nov 2026, 08:05","Legs, easy","Squat (Barbell)",,"",1,"normal",100,5,,,8.5
+"Morning workout ☀️","4 Nov 2026, 07:15","4 Nov 2026, 08:05","Legs, easy","Lying Leg Curl (Machine)",,"",0,"normal",40,12,,,
+"Morning workout ☀️","4 Nov 2026, 07:15","4 Nov 2026, 08:05","Legs, easy","Lying Leg Curl (Machine)",,"",1,"failure",40,10,,,
+"Morning workout ☀️","4 Nov 2026, 07:15","4 Nov 2026, 08:05","Legs, easy","Mystery Machine Thing",,"",0,"normal",10,10,,,
+"Trening","2 Nov 2026, 17:30","2 Nov 2026, 18:20","","Pull Up",,"",0,"normal",,8,,,
+"Trening","2 Nov 2026, 17:30","2 Nov 2026, 18:20","","Pull Up",,"",1,"normal",,6,,,
+"Trening","2 Nov 2026, 17:30","2 Nov 2026, 18:20","","Seated Cable Row - Bar Grip",,"",0,"normal",60,10,,,
+"Trening","2 Nov 2026, 17:30","2 Nov 2026, 18:20","","Treadmill Running",,"",0,"normal",,,1.5,600,
+"Trening","yesterday","","","Pull Up",,"",2,"normal",,5,,,
+"Trening","2 Nov 2026, 17:30","2 Nov 2026, 18:20","","Pull Up",,"",2,"normal",,,,,

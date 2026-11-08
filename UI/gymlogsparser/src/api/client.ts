@@ -8,6 +8,7 @@ import type {
 import type { DashboardData, DashboardRange } from "@/types/dashboard";
 import type { MuscleTarget, MuscleTargetUpdate } from "@/types/muscleTargets";
 import type { BodyweightEntry } from "@/types/bodyweight";
+import type { HevyImportRequest, HevyImportSummary } from "@/types/import";
 
 export const parseWorkout = (text: string, barbellWeightsArePerSide: boolean) =>
   api.post<ParseWorkoutResponse>("/ai/parse-workout", {
@@ -84,6 +85,14 @@ export const updateBodyweightEntry = (date: string, entry: BodyweightEntry) =>
 
 export const deleteBodyweightEntry = (date: string) =>
   api.delete(`/bodyweight-entries/${encodeURIComponent(date)}`);
+
+/** Dry run of a Hevy CSV import: what would be imported, and the exercise matches. */
+export const previewHevyImport = (request: HevyImportRequest) =>
+  api.post<HevyImportSummary>("/imports/hevy/preview", request);
+
+/** Imports a Hevy CSV export; workouts the user already has are skipped. */
+export const importHevy = (request: HevyImportRequest) =>
+  api.post<HevyImportSummary>("/imports/hevy", request);
 
 export interface WorkoutSummary {
   id: string;
