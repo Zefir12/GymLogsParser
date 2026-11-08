@@ -40,6 +40,9 @@ const { error, success } = storeToRefs(workoutStore);
         <RouterLink to="/bodyweight" class="nav-link" active-class="active">
           Bodyweight
         </RouterLink>
+        <RouterLink to="/import" class="nav-link" active-class="active">
+          Import
+        </RouterLink>
       </nav>
 
       <div class="account">

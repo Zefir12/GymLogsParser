@@ -40,6 +40,11 @@ const routes = [
     component: () => import("@/views/BodyweightView.vue"),
   },
   {
+    path: "/import",
+    name: "import",
+    component: () => import("@/views/ImportView.vue"),
+  },
+  {
     path: "/admin",
     component: () => import("@/views/AdminView.vue"),
     meta: { roles: ["admin"] },
