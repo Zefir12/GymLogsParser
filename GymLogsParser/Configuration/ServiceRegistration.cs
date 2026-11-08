@@ -16,6 +16,7 @@ public static class ServiceRegistration
             services.AddScoped<IExerciseCatalogService, ExerciseCatalogService>();
             services.AddScoped<IMuscleTargetService, MuscleTargetService>();
             services.AddScoped<IBodyweightService, BodyweightService>();
+            services.AddScoped<IHevyImportService, HevyImportService>();
             services.AddSingleton<ILegacyDataClaimService, LegacyDataClaimService>();
             services.AddHttpClient<IDeepSeekService, DeepSeekService>((serviceProvider, client) =>
             {
