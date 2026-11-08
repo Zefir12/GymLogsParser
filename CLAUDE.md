@@ -153,7 +153,7 @@ checks did not run in the PR's "How it was tested", list the commands for zefir
 ### Muscle groups
 - One flat list, canonical English Title Case strings (Chest, Lats, Upper Back, Traps,
   Lower Back, Front/Side/Rear Delts, Biceps, Triceps, Forearms, Abs, Quadriceps,
-  Hamstrings, Glutes, Calves, Adductors, Abductors, Neck, plus the non-muscle groups
+  Hamstrings, Glutes, Calves, Adductors, Abductors, plus the non-muscle groups
   Cardio and Warm-up). Source of truth: Core/Models/MuscleGroups.cs, mirrored by
   UI/gymlogsparser/src/utils/muscleGroups.ts in the same order. Change both together,
   and add a data migration for stored values that the change affects.

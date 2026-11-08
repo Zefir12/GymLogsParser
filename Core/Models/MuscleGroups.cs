@@ -13,7 +13,7 @@ public static class MuscleGroups
     /// <summary>Warm-up and mobility drills: kept in the catalog, left out of training volume.</summary>
     public const string WarmUp = "Warm-up";
 
-    /// <summary>Display order: upper body, arms, core, lower body, neck, then Cardio and Warm-up.</summary>
+    /// <summary>Display order: upper body, arms, core, lower body, then Cardio and Warm-up.</summary>
     public static readonly IReadOnlyList<string> All =
     [
         "Chest",
@@ -34,7 +34,6 @@ public static class MuscleGroups
         "Calves",
         "Adductors",
         "Abductors",
-        "Neck",
         Cardio,
         WarmUp
     ];
