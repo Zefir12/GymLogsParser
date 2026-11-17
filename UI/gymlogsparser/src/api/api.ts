@@ -10,7 +10,7 @@ export class ApiError extends Error {
 let onUnauthorized: (() => void) | null = null;
 export const setUnauthorizedHandler = (fn: () => void) => (onUnauthorized = fn);
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function send(path: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(`${import.meta.env.VITE_API_URL ?? ""}${path}`, {
     credentials: "include",
     ...init,
@@ -29,6 +29,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw new ApiError(res.status, message);
   }
+  return res;
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await send(path, init);
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
@@ -40,6 +45,8 @@ const json = (method: string, body?: unknown): RequestInit => ({
 
 export const api = {
   get: <T>(p: string) => request<T>(p),
+  /** GET a file (CSV export) as a Blob; errors behave as for `get`. */
+  blob: async (p: string) => (await send(p)).blob(),
   post: <T>(p: string, body?: unknown) => request<T>(p, json("POST", body)),
   put: <T = void>(p: string, body?: unknown) =>
     request<T>(p, json("PUT", body)),

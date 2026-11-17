@@ -4,14 +4,25 @@ import { storeToRefs } from "pinia";
 import { RouterLink } from "vue-router";
 
 import { useHevyImportStore } from "@/stores/hevyImport";
+import { useHevyExportStore } from "@/stores/hevyExport";
 import { useExerciseCatalogStore } from "@/stores/exercises";
 import { HEVY_MAX_CSV_LENGTH } from "@/types/import";
 import { MUSCLE_GROUPS } from "@/utils/muscleGroups";
+import { todayIso } from "@/utils/dashboard";
+import { saveFile } from "@/utils/download";
 import type { ExerciseDefinition } from "@/types/exercise";
 
 const store = useHevyImportStore();
 const { fileName, preview, result, mappings, busy, error } = storeToRefs(store);
 const catalog = useExerciseCatalogStore();
+const exporter = useHevyExportStore();
+const {
+  from: exportFrom,
+  to: exportTo,
+  busy: exporting,
+  error: exportError,
+} = storeToRefs(exporter);
+const today = todayIso();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const fileError = ref<string | null>(null);
@@ -66,6 +77,17 @@ function startOver() {
   store.reset();
   fileError.value = null;
   if (fileInput.value) fileInput.value.value = "";
+}
+
+/** Downloads the Hevy CSV; the name says the range so parts of a split export stay apart. */
+async function exportCsv() {
+  const blob = await exporter.download();
+  if (!blob) return;
+  const range =
+    exportFrom.value || exportTo.value
+      ? `${exportFrom.value || "start"}-to-${exportTo.value || today}`
+      : today;
+  saveFile(blob, `gymlogs-hevy-${range}.csv`);
 }
 
 const plural = (n: number, one: string, many: string) =>
@@ -246,6 +268,47 @@ const plural = (n: number, one: string, many: string) =>
         </li>
       </ul>
     </section>
+
+    <section class="card" aria-labelledby="export-heading">
+      <h2 id="export-heading">Export as Hevy CSV</h2>
+      <p class="hint">
+        Downloads your workouts in Hevy's CSV format, ready for embr's Hevy
+        import (Training → Import) or for importing here again. Leave the dates
+        empty to export everything; a file can hold up to 10 MB, so very long
+        histories need a shorter range.
+      </p>
+      <div class="export-form">
+        <label class="field">
+          <span class="field-label">From</span>
+          <input
+            v-model="exportFrom"
+            type="date"
+            :max="exportTo || today"
+            :disabled="exporting"
+          />
+        </label>
+        <label class="field">
+          <span class="field-label">To</span>
+          <input
+            v-model="exportTo"
+            type="date"
+            :min="exportFrom || undefined"
+            :disabled="exporting"
+          />
+        </label>
+        <button
+          type="button"
+          class="primary-button"
+          :disabled="exporting"
+          @click="exportCsv"
+        >
+          {{ exporting ? "Exporting…" : "Download CSV" }}
+        </button>
+      </div>
+      <p v-if="exportError" class="error-text" role="alert">
+        {{ exportError }}
+      </p>
+    </section>
   </div>
 </template>
 
@@ -299,6 +362,7 @@ const plural = (n: number, one: string, many: string) =>
 }
 
 input[type="file"],
+input[type="date"],
 select {
   min-width: 0;
   max-width: 100%;
@@ -309,6 +373,7 @@ select {
   font-size: 16px; /* stops iOS zooming into the field */
 }
 
+input[type="date"],
 select {
   height: 38px;
   padding: 0 var(--card-pad-xs);
@@ -318,6 +383,7 @@ select {
   border-radius: var(--radius-control);
 }
 
+input[type="date"]:hover,
 select:hover {
   border-color: var(--glass-border-strong);
 }
@@ -416,6 +482,13 @@ a:focus-visible {
   background: var(--success-bg);
   color: var(--success);
   font-size: 0.7rem;
+}
+
+.export-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--card-gap-md);
 }
 
 .result-line {
@@ -529,6 +602,14 @@ a:focus-visible {
 
   .mapping select {
     width: 100%;
+  }
+
+  .export-form > * {
+    flex: 1 1 100%;
+  }
+
+  .export-form .primary-button {
+    justify-content: center;
   }
 
   .actions > * {
