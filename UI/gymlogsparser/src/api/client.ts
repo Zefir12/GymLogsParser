@@ -94,6 +94,18 @@ export const previewHevyImport = (request: HevyImportRequest) =>
 export const importHevy = (request: HevyImportRequest) =>
   api.post<HevyImportSummary>("/imports/hevy", request);
 
+/**
+ * The user's workouts as a Hevy CSV (for embr's Hevy import, or ours). `from`/`to`
+ * (yyyy-MM-dd, inclusive) are optional.
+ */
+export const exportHevy = (from?: string, to?: string) => {
+  const query = new URLSearchParams();
+  if (from) query.set("from", from);
+  if (to) query.set("to", to);
+  const qs = query.toString();
+  return api.blob(`/exports/hevy${qs ? `?${qs}` : ""}`);
+};
+
 export interface WorkoutSummary {
   id: string;
   date: string | null;
